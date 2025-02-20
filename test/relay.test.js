@@ -1,11 +1,11 @@
 import { describe, it, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import {Nip01Signer} from '@welshman/signer'
 import WebSocket from 'ws'
+import { createEvent } from '@welshman/util'
+import {Nip01Signer} from '@welshman/signer'
 import { appSigner } from '../src/env.js'
 import { server } from '../src/server.js'
 import { migrate } from '../src/database.js'
-import { createEvent } from '@welshman/util'
 
 const port = 18080
 const url = `ws://localhost:${port}`

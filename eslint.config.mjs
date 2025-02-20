@@ -1,20 +1,29 @@
 import globals from "globals";
 import pluginJs from "@eslint/js";
-
+import tsPlugin from "@typescript-eslint/eslint-plugin";
+import tsParser from "@typescript-eslint/parser";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
-    files: ["src/**/*.js"],
+    ...pluginJs.configs.recommended,
+    files: ["src/**/*.{js,ts}"],
     languageOptions: {
       sourceType: "module",
       globals: globals.node,
+      parser: tsParser,
+      parserOptions: {
+        project: "./tsconfig.json"
+      }
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin
     },
     rules: {
-      'no-unused-vars': ["error", {
+      ...tsPlugin.configs.recommended.rules,
+      '@typescript-eslint/no-unused-vars': ["error", {
         caughtErrors: "none",
-      }]
+      }],
     },
   },
-  pluginJs.configs.recommended,
 ];

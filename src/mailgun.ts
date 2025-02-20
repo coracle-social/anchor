@@ -1,5 +1,5 @@
-const mailgun = require('mailgun-js')
-const {MAILGUN_API_KEY, MAILGUN_DOMAIN, ANCHOR_NAME, CLIENT_DOMAIN} = require('./env')
+import mailgun from 'mailgun-js'
+import {MAILGUN_API_KEY, MAILGUN_DOMAIN, ANCHOR_NAME, CLIENT_DOMAIN} from './env'
 
 const mg = mailgun({apiKey: MAILGUN_API_KEY, domain: MAILGUN_DOMAIN})
 
@@ -11,7 +11,7 @@ const send = (data) => {
   }
 }
 
-const sendConfirmEmail = ({email, confirm_token}) => {
+export const sendConfirmEmail = ({email, confirm_token}) => {
   const href = `${CLIENT_DOMAIN}/confirm-email?email=${encodeURIComponent(email)}&confirm_token=${confirm_token}`
 
   send({
@@ -26,5 +26,3 @@ const sendConfirmEmail = ({email, confirm_token}) => {
     text: `Please confirm your email address by visiting: ${href}`
   })
 }
-
-module.exports = {sendConfirmEmail}
