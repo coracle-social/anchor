@@ -1,50 +1,23 @@
 const {decrypt} = require('@welshman/signer')
-const {parseJson, tryCatch} = require('@welshman/lib')
-const {DELETE, matchFilters, getTagValues, hasValidSignature} = require('@welshman/util')
-const {appSigner, LOG_RELAY_MESSAGES} = require('./env')
-const {addEvent, removeEvents} = require('./database')
-
-const NOTIFIER_SUBSCRIPTION = 32830
-
-const NOTIFIER_SUBSCRIPTION_STATUS = 32831
-
-const subscriptions = new Map()
-
-const sendEvent = async event => {
-  for (const [id, {connection, filters}] of subscriptions.entries()) {
-    if (matchFilters(filters, event)) {
-      connection.send(['EVENT', id, event])
-    }
-  }
-}
+const {parseJson, randomId, tryCatch} = require('@welshman/lib')
+const {DELETE, matchFilters, getTagValues, createEvent, hasValidSignature} = require('@welshman/util')
+const {appSigner, LOG_RELAY_MESSAGES, NOTIFIER_STATUS, NOTIFIER_SUBSCRIPTION} = require('./env')
+const {addDelete, addSubscription, getSubscriptionsForPubkey} = require('./database')
 
 class Connection {
+  auth = {
+    challenge: randomId(),
+    event: undefined,
+  }
 
   // Lifecycle
 
   constructor(socket) {
     this._socket = socket
-    this._ids = new Set()
   }
 
   cleanup() {
     this._socket.close()
-
-    for (const id of this._ids) {
-      this.removeSub(id)
-    }
-  }
-
-  // Subscription management
-
-  addSub(id, filters) {
-    subscriptions.set(id, {connection: this, filters})
-    this._ids.add(id)
-  }
-
-  removeSub(id) {
-    subscriptions.delete(id)
-    this._ids.delete(id)
   }
 
   // Send/receive
@@ -86,17 +59,39 @@ class Connection {
 
   // Verb-specific handlers
 
-  onCLOSE(id) {
-    this.removeSub(id)
-  }
-
-  onREQ(id, ...filters) {
-    if (filters.every(f => f.kinds?.includes(NOTIFIER_SUBSCRIPTION_STATUS))) {
-      this.addSub(id, filters)
-      this.send(['EOSE', id])
-    } else {
-      this.send(['NOTICE', '', `Only filters matching kind ${NOTIFIER_SUBSCRIPTION_STATUS} events are accepted`])
+  async onREQ(id, ...filters) {
+    if (!this.auth.event) {
+      return this.send(['CLOSED', id, `auth-required: subscriptions are protected`])
     }
+
+    const subscriptions = await getSubscriptionsForPubkey(this.auth.event.pubkey)
+
+    const subscriptionStatusEvents = await Promise.all(
+      subscriptions.map(
+        async (subscription) =>
+          appSigner.sign(createEvent(NOTIFIER_STATUS, {
+            content: await appSigner.nip44.encrypt(
+              this.auth.event.pubkey,
+              JSON.stringify([
+                ["status", "ok"],
+                ["message", "This subscription is active"],
+              ])
+            ),
+            tags: [
+              ["a", subscription.address],
+              ["p", subscription.pubkey],
+            ],
+          }))
+      )
+    )
+
+    for (const event of [...subscriptions.events, ...subscriptionStatusEvents]) {
+      if (matchFilters(filters, event)) {
+        this.send(['EVENT', id, event])
+      }
+    }
+
+    this.send(['EOSE', id])
   }
 
   async onEVENT(event) {

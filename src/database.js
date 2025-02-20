@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3')
 const crypto = require('crypto')
 const {getTagValues, getAddress} = require('@welshman/util')
+const {NOTIFIER_SUBSCRIPTION} = require('./env')
 
 const db = new sqlite3.Database('anchor.db')
 
@@ -41,6 +42,11 @@ const run = (query, params) =>
     db.run(query, params, function(err) {
       return err ? reject(err) : resolve(this.changes > 0)
     })
+  })
+
+const all = (query, params) =>
+  new Promise((resolve, reject) => {
+    db.all(query, params, (err, rows) => err ? reject(err) : resolve(rows))
   })
 
 const get = (query, params, cb) =>
@@ -136,6 +142,12 @@ const addSubscription = async (event, tags) => {
   }
 }
 
+const getSubscriptionsForPubkey = async (pubkey) => {
+  const rows = await all(`SELECT * FROM subscriptions WHERE pubkey = ?`, [pubkey])
+
+  return rows?.map(row => ({...row, event: JSON.parse(row.event), tags: JSON.parse(row.tags)}))
+}
+
 module.exports = {
   migrate,
   addEmail,
@@ -144,4 +156,5 @@ module.exports = {
   confirmEmail,
   addDelete,
   addSubscription,
+  getSubscriptionsForPubkey,
 }

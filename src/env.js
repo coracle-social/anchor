@@ -17,4 +17,6 @@ module.exports = {
   MAILGUN_API_KEY: process.env.MAILGUN_API_KEY,
   MAILGUN_DOMAIN: process.env.MAILGUN_DOMAIN,
   PORT: process.env.PORT,
+  NOTIFIER_SUBSCRIPTION: 32830,
+  NOTIFIER_STATUS: 32831,
 }

@@ -3,6 +3,7 @@ const addWebsockets = require('express-ws')
 const {rateLimit} = require('express-rate-limit')
 const {PORT} = require('./env')
 const {migrate} = require('./database')
+const {Connection} = require('./relay')
 const {handleEmailConfirm, handleEmailRemove, handleNip11, handleUnsubscribe} = require('./handlers')
 
 const server = express()
