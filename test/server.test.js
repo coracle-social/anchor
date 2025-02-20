@@ -65,7 +65,7 @@ describe('Server', () => {
   })
 
   describe('POST /email/unsubscribe', () => {
-    it.only('removes email with valid token', async () => {
+    it('removes email with valid token', async () => {
       const email = 'test@example.com'
       const confirm_token = await addEmail({ email })
       const {access_token} = await get('SELECT access_token FROM emails WHERE email = ?', [email])

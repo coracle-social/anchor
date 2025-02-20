@@ -16,8 +16,8 @@ server.get('/unsubscribe', handleUnsubscribe)
 server.post('/email/confirm', handleEmailConfirm)
 server.post('/email/unsubscribe', handleEmailRemove)
 
-server.ws('/', socket => {
-  const connection = new Connection(socket)
+server.ws('/', (socket, request) => {
+  const connection = new Connection(socket, request)
 
   socket.on('message', msg => connection.handle(msg))
   socket.on('error', () => connection.cleanup())

@@ -4,7 +4,7 @@ import { DELETE, matchFilters, getTagValue, getTagValues, createEvent, hasValidS
 import { appSigner, LOG_RELAY_MESSAGES, NOTIFIER_STATUS, NOTIFIER_SUBSCRIPTION } from './env.js'
 import { addDelete, addSubscription, getSubscriptionsForPubkey } from './database.js'
 
-class Connection {
+export class Connection {
   auth = {
     challenge: randomId(),
     event: undefined,
@@ -12,9 +12,10 @@ class Connection {
 
   // Lifecycle
 
-  constructor(socket) {
+  constructor(socket, request) {
     this._socket = socket
-    this.send(['AUTH', this.challenge])
+    this._request = request
+    this.send(['AUTH', this.auth.challenge])
   }
 
   cleanup() {
@@ -52,7 +53,11 @@ class Connection {
     const handler = this[`on${verb}`]
 
     if (handler) {
-      handler.call(this, ...payload)
+      try {
+        handler.call(this, ...payload)
+      } catch (e) {
+        console.error(e)
+      }
     } else {
       this.send(['NOTICE', '', `Unable to handle ${verb} message`])
     }
@@ -69,21 +74,21 @@ class Connection {
       return this.send(['OK', event.id, false, "invalid kind"])
     }
 
-    if (event.created_at > ago(5, MINUTE) && event.created_at < now() + int(5, MINUTE)) {
+    if (event.created_at < ago(5, MINUTE)) {
       return this.send(['OK', event.id, false, "created_at is too far from current time"])
     }
 
-    if (getTagValue('challenge', event.tags) !== this.challenge) {
+    if (getTagValue('challenge', event.tags) !== this.auth.challenge) {
       return this.send(['OK', event.id, false, "invalid challenge"])
     }
 
-    if (getTagValue('relay', event.tags) !== this._socket.request.url) {
+    if (!getTagValue('relay', event.tags).includes(this._request.get('host'))) {
       return this.send(['OK', event.id, false, "invalid relay"])
     }
 
     this.auth.event = event
 
-    return this.send(['OK', event.id, true, ""])
+    this.send(['OK', event.id, true, ""])
   }
 
   async onREQ(id, ...filters) {
@@ -154,7 +159,8 @@ class Connection {
       return this.send(['OK', event.id, false, 'Event must p-tag this relay'])
     }
 
-    const tags = await tryCatch(() => parseJson(decrypt(appSigner, event.pubkey, event.content)))
+    const plaintext = await tryCatch(() => decrypt(appSigner, event.pubkey, event.content))
+    const tags = await tryCatch(() => parseJson(plaintext))
 
     if (!Array.isArray(tags)) {
       return this.send(['OK', event.id, false, 'Failed to decrypt event content'])
@@ -165,5 +171,3 @@ class Connection {
     this.send(['OK', event.id, true, ""])
   }
 }
-
-export { Connection }
