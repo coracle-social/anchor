@@ -1,8 +1,9 @@
 import { decrypt } from '@welshman/signer'
-import { parseJson, ago, MINUTE, now, int, randomId, tryCatch } from '@welshman/lib'
+import { parseJson, ago, MINUTE, randomId, tryCatch } from '@welshman/lib'
 import { DELETE, matchFilters, getTagValue, getTagValues, createEvent, hasValidSignature } from '@welshman/util'
 import { appSigner, LOG_RELAY_MESSAGES, NOTIFIER_STATUS, NOTIFIER_SUBSCRIPTION } from './env.js'
-import { addDelete, addSubscription, getSubscriptionsForPubkey } from './database.js'
+import { addDelete, addSubscription, getSubscriptionsForPubkey, isSubscriptionDeleted } from './database.js'
+import { registerSubscription } from './worker.js'
 
 export class Connection {
   auth = {
@@ -159,6 +160,10 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Event must p-tag this relay'])
     }
 
+    if (await isSubscriptionDeleted(event)) {
+      return this.send(['OK', event.id, false, 'Subscription has been deleted'])
+    }
+
     const plaintext = await tryCatch(() => decrypt(appSigner, event.pubkey, event.content))
     const tags = await tryCatch(() => parseJson(plaintext))
 
@@ -166,7 +171,7 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Failed to decrypt event content'])
     }
 
-    await addSubscription(event, tags)
+    registerSubscription(await addSubscription(event, tags))
 
     this.send(['OK', event.id, true, ""])
   }

@@ -122,28 +122,37 @@ export const addDelete = async (event) => {
   }
 }
 
-export const addSubscription = async (event, tags) => {
-  const address = getAddress(event)
+const parseSubscription = ({event, tags, ...subscription}) =>
+  ({...subscription, event: JSON.parse(event), tags: JSON.parse(tags)})
 
-  const deleted = await exists(
+export const isSubscriptionDeleted = (event) =>
+  exists(
     `SELECT * FROM deletes WHERE address = ? AND created_at > ?`,
-    [address, event.created_at]
+    [getAddress(event), event.created_at]
   )
 
-  if (!deleted) {
-    await run(
+export const addSubscription = async (event, tags) =>
+  parseSubscription(
+    await get(
       `INSERT INTO subscriptions (address, pubkey, event, tags) VALUES (?, ?, ?, ?)
        ON CONFLICT(address) DO UPDATE SET
         pubkey=excluded.pubkey,
         event=excluded.event,
-        tags=excluded.tags`,
-      [address, event.pubkey, JSON.stringify(event), JSON.stringify(tags)]
+        tags=excluded.tags
+       RETURNING *`,
+      [getAddress(event), event.pubkey, JSON.stringify(event), JSON.stringify(tags)]
     )
-  }
+  )
+
+export const getAllSubscriptions = async () => {
+  const rows = await all(`SELECT * FROM subscriptions`)
+
+  return rows.map(parseSubscription)
 }
 
 export const getSubscriptionsForPubkey = async (pubkey) => {
   const rows = await all(`SELECT * FROM subscriptions WHERE pubkey = ?`, [pubkey])
 
-  return rows?.map(row => ({...row, event: JSON.parse(row.event), tags: JSON.parse(row.tags)}))
+  return rows.map(parseSubscription)
 }
+
