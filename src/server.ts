@@ -1,10 +1,11 @@
-import express from 'express'
-import addWebsockets from 'express-ws'
+import express, { Request, Response } from 'express'
+import addWebsockets, { Application } from 'express-ws'
 import rateLimit from 'express-rate-limit'
+import { WebSocket } from 'ws'
 import { Connection } from './relay.js'
 import { handleEmailConfirm, handleEmailRemove, handleNip11, handleUnsubscribe } from './handlers.js'
 
-export const server = express()
+export const server: Application = express() as unknown as Application
 
 addWebsockets(server)
 
@@ -16,7 +17,7 @@ server.get('/unsubscribe', handleUnsubscribe)
 server.post('/email/confirm', handleEmailConfirm)
 server.post('/email/unsubscribe', handleEmailRemove)
 
-server.ws('/', (socket, request) => {
+server.ws('/', (socket: WebSocket, request: Request) => {
   const connection = new Connection(socket, request)
 
   socket.on('message', msg => connection.handle(msg))

@@ -1,18 +1,22 @@
-import mailgun from 'mailgun-js'
-import {MAILGUN_API_KEY, MAILGUN_DOMAIN, ANCHOR_NAME, CLIENT_DOMAIN} from './env'
+import FormData from 'form-data'
+import Mailgun from 'mailgun.js'
+import {MAILGUN_API_KEY, MAILGUN_DOMAIN, ANCHOR_NAME} from './env.js'
 
-const mg = mailgun({apiKey: MAILGUN_API_KEY, domain: MAILGUN_DOMAIN})
+// @ts-ignore
+const mailgun = new Mailgun(FormData)
 
-const send = (data) => {
+const mg = mailgun.client({username: 'api', key: MAILGUN_API_KEY})
+
+const send = (data: Record<string, any>) => {
   if (MAILGUN_DOMAIN.startsWith('sandbox')) {
     console.log(data)
   } else {
-    mg.messages().send(data)
+    mg.messages.create(MAILGUN_DOMAIN, data)
   }
 }
 
-export const sendConfirmEmail = ({email, confirm_token}) => {
-  const href = `${CLIENT_DOMAIN}/confirm-email?email=${encodeURIComponent(email)}&confirm_token=${confirm_token}`
+export const sendConfirmEmail = (domain: string, {email, confirm_token}: {email: string, confirm_token: string}) => {
+  const href = `${domain}/confirm-email?email=${encodeURIComponent(email)}&confirm_token=${confirm_token}`
 
   send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,

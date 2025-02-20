@@ -1,19 +1,30 @@
 import { decrypt } from '@welshman/signer'
-import { parseJson, ago, MINUTE, randomId, tryCatch } from '@welshman/lib'
+import { parseJson, pluck, ago, MINUTE, randomId, tryCatch } from '@welshman/lib'
+import type { SignedEvent, Filter } from '@welshman/util'
 import { DELETE, matchFilters, getTagValue, getTagValues, createEvent, hasValidSignature } from '@welshman/util'
 import { appSigner, LOG_RELAY_MESSAGES, NOTIFIER_STATUS, NOTIFIER_SUBSCRIPTION } from './env.js'
 import { addDelete, addSubscription, getSubscriptionsForPubkey, isSubscriptionDeleted } from './database.js'
 import { registerSubscription } from './worker.js'
+import { WebSocket } from 'ws'
+import { Request } from 'express'
+
+type AuthState = {
+  challenge: string
+  event?: SignedEvent
+}
+
+type RelayMessage = [string, ...any[]]
 
 export class Connection {
-  auth = {
+  private _socket: WebSocket
+  private _request: Request
+
+  auth: AuthState = {
     challenge: randomId(),
     event: undefined,
   }
 
-  // Lifecycle
-
-  constructor(socket, request) {
+  constructor(socket: WebSocket, request: Request) {
     this._socket = socket
     this._request = request
     this.send(['AUTH', this.auth.challenge])
@@ -23,9 +34,7 @@ export class Connection {
     this._socket.close()
   }
 
-  // Send/receive
-
-  send(message) {
+  send(message: RelayMessage) {
     this._socket.send(JSON.stringify(message))
 
     if (LOG_RELAY_MESSAGES) {
@@ -33,25 +42,31 @@ export class Connection {
     }
   }
 
-  handle(message) {
+  handle(message: WebSocket.Data) {
+    let parsedMessage: RelayMessage
     try {
-      message = JSON.parse(message)
+      parsedMessage = JSON.parse(message.toString())
     } catch (e) {
       this.send(['NOTICE', '', 'Unable to parse message'])
+      return
     }
 
     if (LOG_RELAY_MESSAGES) {
-      console.log('relay received:', ...message)
+      console.log('relay received:', ...parsedMessage)
     }
 
-    let verb, payload
+    let verb: string
+    let payload: any[]
     try {
-      [verb, ...payload] = message
+      [verb, ...payload] = parsedMessage
     } catch (e) {
       this.send(['NOTICE', '', 'Unable to read message'])
+      return
     }
 
-    const handler = this[`on${verb}`]
+    const handler = this[`on${verb}` as keyof Connection] as ((
+      ...args: any[]
+    ) => Promise<void>) | undefined
 
     if (handler) {
       try {
@@ -64,9 +79,7 @@ export class Connection {
     }
   }
 
-  // Verb-specific handlers
-
-  async onAUTH(event) {
+  async onAUTH(event: SignedEvent) {
     if (!hasValidSignature(event)) {
       return this.send(['OK', event.id, false, "invalid signature"])
     }
@@ -83,7 +96,7 @@ export class Connection {
       return this.send(['OK', event.id, false, "invalid challenge"])
     }
 
-    if (!getTagValue('relay', event.tags).includes(this._request.get('host'))) {
+    if (!getTagValue('relay', event.tags)?.includes(this._request.get('host') || "")) {
       return this.send(['OK', event.id, false, "invalid relay"])
     }
 
@@ -92,33 +105,37 @@ export class Connection {
     this.send(['OK', event.id, true, ""])
   }
 
-  async onREQ(id, ...filters) {
+  async onREQ(id: string, ...filters: Filter[]) {
     if (!this.auth.event) {
       return this.send(['CLOSED', id, `auth-required: subscriptions are protected`])
     }
 
-    const subscriptions = await getSubscriptionsForPubkey(this.auth.event.pubkey)
+    const userPubkey = this.auth.event.pubkey
+    const subscriptions = await getSubscriptionsForPubkey(userPubkey)
 
+    const subscriptionEvents = pluck<SignedEvent>('event', subscriptions)
     const subscriptionStatusEvents = await Promise.all(
       subscriptions.map(
         async (subscription) =>
-          appSigner.sign(createEvent(NOTIFIER_STATUS, {
-            content: await appSigner.nip44.encrypt(
-              this.auth.event.pubkey,
-              JSON.stringify([
-                ["status", "ok"],
-                ["message", "This subscription is active"],
-              ])
-            ),
-            tags: [
-              ["a", subscription.address],
-              ["p", subscription.pubkey],
-            ],
-          }))
+          appSigner.sign(
+            createEvent(NOTIFIER_STATUS, {
+              content: await appSigner.nip44.encrypt(
+                userPubkey,
+                JSON.stringify([
+                  ["status", "ok"],
+                  ["message", "This subscription is active"],
+                ])
+              ),
+              tags: [
+                ["a", subscription.address],
+                ["p", subscription.pubkey],
+              ],
+            })
+          )
       )
     )
 
-    for (const event of [...subscriptions.events, ...subscriptionStatusEvents]) {
+    for (const event of [...subscriptionEvents, ...subscriptionStatusEvents]) {
       if (matchFilters(filters, event)) {
         this.send(['EVENT', id, event])
       }
@@ -127,33 +144,31 @@ export class Connection {
     this.send(['EOSE', id])
   }
 
-  async onEVENT(event) {
+  async onEVENT(event: SignedEvent) {
     if (!hasValidSignature(event)) {
       return this.send(['OK', event.id, false, 'Invalid signature'])
     }
 
     try {
       if (event.kind === DELETE) {
-        this.handleDelete(event)
+        await this.handleDelete(event)
       } else if (event.kind === NOTIFIER_SUBSCRIPTION) {
-        this.handleNotifierSubscription(event)
+        await this.handleNotifierSubscription(event)
       } else {
         this.send(['OK', event.id, false, 'Event kind not accepted'])
       }
     } catch (e) {
       console.error(e)
-
       this.send(['OK', event.id, false, 'Unknown error'])
     }
   }
 
-  async handleDelete(event) {
+  private async handleDelete(event: SignedEvent) {
     await addDelete(event)
-
     this.send(['OK', event.id, true, ""])
   }
 
-  async handleNotifierSubscription(event) {
+  private async handleNotifierSubscription(event: SignedEvent) {
     const pubkey = await appSigner.getPubkey()
 
     if (!getTagValues('p', event.tags).includes(pubkey)) {

@@ -1,18 +1,22 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { Request, Response } from 'express'
 import { appSigner } from './env.js'
 import { confirmEmail, authenticateEmail, removeEmail } from './database.js'
 
 const __filename = fileURLToPath(import.meta.url)
-
 const __dirname = path.dirname(__filename)
 
-const _err = (res, status, error) => res.status(status).send({error})
+const _err = (res: Response, status: number, error: string) => {
+  res.status(status).send({error})
+}
 
-const _ok = (res, status = 200) => res.status(status).send({ok: true})
+const _ok = (res: Response, status = 200) => {
+  res.status(status).send({ok: true})
+}
 
-const handleNip11 = async (req, res) => {
+const handleNip11 = async (_req: Request, res: Response) => {
   res.set({'Content-Type': 'application/nostr+json; charset=utf-8'})
 
   res.json({
@@ -24,39 +28,40 @@ const handleNip11 = async (req, res) => {
   })
 }
 
-const handleEmailConfirm = async (req, res) => {
+const handleEmailConfirm = async (req: Request, res: Response) => {
   const {email, confirm_token} = req.body
 
   const confirmed = await confirmEmail({email, confirm_token})
 
   if (confirmed) {
-    return _ok(res)
+    _ok(res)
   } else {
-    return _err(res, 400, "It looks like that confirmation code is invalid or has expired.")
+    _err(res, 400, "It looks like that confirmation code is invalid or has expired.")
   }
 }
 
-const handleEmailRemove = async (req, res) => {
+const handleEmailRemove = async (req: Request, res: Response) => {
   const {email, access_token} = req.body
 
   const authenticated = await authenticateEmail({email, access_token})
 
   if (!authenticated) {
-    return _err(res, 401, "Invalid access token")
+    _err(res, 401, "Invalid access token")
+    return
   }
 
   await removeEmail({email})
 
-  return _ok(res)
+  _ok(res)
 }
 
-const handleUnsubscribe = async (req, res) => {
+const handleUnsubscribe = async (req: Request, res: Response) => {
   const {email, token} = req.query
 
   const template = await fs.readFile(path.join(__dirname, 'templates/unsubscribe.html'), 'utf8')
   const html = template
-    .replace('{{email}}', email)
-    .replace('{{token}}', token)
+    .replace('{{email}}', email as string)
+    .replace('{{token}}', token as string)
 
   res.send(html)
 }
