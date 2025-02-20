@@ -1,0 +1,1 @@
+A nostr notifier service.
