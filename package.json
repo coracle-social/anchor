@@ -1,7 +1,21 @@
 {
   "name": "anchor",
   "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src",
+    "start": "node dist/index.js",
+    "test": "node --test test/*.test.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "eslint": "^9.15.0",
+    "globals": "^15.12.0",
+    "supertest": "^6.3.4"
+  },
   "dependencies": {
+    "@types/node": "^22.13.4",
     "@welshman/lib": "~0.0.41",
     "@welshman/signer": "~0.0.20",
     "@welshman/util": "~0.0.61",
@@ -14,17 +28,8 @@
     "mailgun-js": "^0.22.0",
     "nostr-tools": "^2.10.3",
     "sqlite3": "^5.1.7",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.3",
     "ws": "^8.13.0"
-  },
-  "scripts": {
-    "start": "node src/index.js",
-    "lint": "eslint src",
-    "test": "node --test test/*.test.js"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.15.0",
-    "eslint": "^9.15.0",
-    "globals": "^15.12.0",
-    "supertest": "^6.3.4"
   }
 }
