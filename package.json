@@ -5,7 +5,6 @@
     "@welshman/signer": "^0.0.14",
     "@welshman/util": "^0.0.46",
     "bcrypt": "^5.1.1",
-    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.21.1",
     "express-rate-limit": "^7.4.1",

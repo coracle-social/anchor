@@ -1,8 +1,7 @@
-const {tryCatch} = require('@welshman/lib')
+const fs = require('fs').promises
+const path = require('path')
 const {appSigner} = require('./env')
-const {startSession} = require('./relay')
-const {sendConfirmEmail, sendEjectEmail, sendResetEmail} = require('./mailgun')
-const {createUser, userExists, authenticateUser, createSession, deleteSession, ejectUser, confirmEmail, requestReset, confirmReset} = require('./database')
+const {confirmEmail, authenticateEmail, removeEmail} = require('./database')
 
 const _err = (res, status, error) => res.status(status).send({error})
 
@@ -20,56 +19,6 @@ const handleNip11 = async (req, res) => {
   })
 }
 
-const handleUserCreate = async (req, res) => {
-  const {email = "", password = ""} = req.body
-
-  if (!email.match('^.+@.+$')) {
-    return _err(res, 400, "Please provide a valid email address.")
-  }
-
-  if (password.length < 12) {
-    return _err(res, 400, "Password must be at least 12 characters.")
-  }
-
-  try {
-    const confirm_token = await createUser({email, password})
-
-    sendConfirmEmail({email, confirm_token})
-  } catch (e) {
-    if (e.code === 'SQLITE_CONSTRAINT') {
-      return _err(res, 409, 'An account with that email address already exists.')
-    } else {
-      throw e
-    }
-  }
-
-  return _ok(res)
-}
-
-const handleUserDelete = async (req, res) => {
-  const {email, password, eject} = req.body
-
-  const user = await authenticateUser({email, password})
-
-  if (!user) {
-    return _err(res, 401, 'Invalid login information, please try again!')
-  }
-
-  if (!user.confirmed_at) {
-    sendConfirmEmail(user)
-
-    return _err(res, 400, 'Your email has not yet been confirmed. Please check your inbox.')
-  }
-
-  const {user_ncryptsec} = await ejectUser({email})
-
-  if (eject && user_ncryptsec) {
-    await sendEjectEmail({email, user_ncryptsec})
-  }
-
-  return _ok(res)
-}
-
 const handleEmailConfirm = async (req, res) => {
   const {email, confirm_token} = req.body
 
@@ -82,75 +31,29 @@ const handleEmailConfirm = async (req, res) => {
   }
 }
 
-const handleResetRequest = async (req, res) => {
-  const {email} = req.body
+const handleEmailRemove = async (req, res) => {
+  const {email, access_token} = req.body
 
-  if (!await userExists({email})) {
-    return _err(res, 400, "We weren't able to find an account with that email address.")
+  const authenticated = await authenticateEmail({email, access_token})
+
+  if (!authenticated) {
+    return _err(res, 401, "Invalid access token")
   }
 
-  const reset_token = await requestReset({email})
-
-  if (reset_token) {
-    sendResetEmail({email, reset_token})
-  }
+  await removeEmail({email})
 
   return _ok(res)
 }
 
-const handleResetConfirm = async (req, res) => {
-  const {email, password, reset_token} = req.body
+const handleUnsubscribe = async (req, res) => {
+  const {email, token} = req.query
 
-  if (password.length < 12) {
-    return _err(res, 400, "Password must be at least 12 characters.")
-  }
+  const template = await fs.readFile(path.join(__dirname, 'templates/unsubscribe.html'), 'utf8')
+  const html = template
+    .replace('{{email}}', email)
+    .replace('{{token}}', token)
 
-  const confirmed = await confirmReset({email, password, reset_token})
-
-  if (confirmed) {
-    return _ok(res)
-  } else {
-    return _err(res, 400, "It looks like that reset code is invalid or has expired.")
-  }
+  res.send(html)
 }
 
-const handleSessionCreate = async (req, res) => {
-  const {email, password, nostrconnect} = req.body
-
-  const user = await authenticateUser({email, password})
-
-  if (!user) {
-    return _err(res, 401, 'Invalid login information, please try again!')
-  }
-
-  if (!user.confirmed_at) {
-    sendConfirmEmail(user)
-
-    return _err(res, 400, 'Your email has not yet been confirmed. Please check your inbox.')
-  }
-
-  const url = tryCatch(() => new URL(nostrconnect))
-
-  if (!url) {
-    return _err(res, 400, 'Invalid nostrconnect URL.')
-  }
-
-  const {encrypted_secret} = user
-  const client_pubkey = url.host
-  const connect_secret = url.searchParams.get('secret')
-  const session = await createSession({email, client_pubkey, connect_secret, encrypted_secret})
-
-  await startSession(session)
-
-  return _ok(res)
-}
-
-const handleSessionDelete = async (req, res) => {
-  const {client_pubkey, connect_secret} = req.body
-
-  await deleteSession({client_pubkey, connect_secret})
-
-  return _ok(res)
-}
-
-module.exports = {handleSessionCreate, handleUserCreate, handleSessionDelete, handleUserDelete, handleEmailConfirm, handleResetRequest, handleResetConfirm, handleNip11}
+module.exports = {handleNip11, handleEmailConfirm, handleEmailRemove, handleUnsubscribe}
