@@ -1,6 +1,6 @@
 const {decrypt} = require('@welshman/signer')
-const {parseJson, randomId, tryCatch} = require('@welshman/lib')
-const {DELETE, matchFilters, getTagValues, createEvent, hasValidSignature} = require('@welshman/util')
+const {parseJson, ago, MINUTE, now, int, randomId, tryCatch} = require('@welshman/lib')
+const {DELETE, matchFilters, getTagValue, getTagValues, createEvent, hasValidSignature} = require('@welshman/util')
 const {appSigner, LOG_RELAY_MESSAGES, NOTIFIER_STATUS, NOTIFIER_SUBSCRIPTION} = require('./env')
 const {addDelete, addSubscription, getSubscriptionsForPubkey} = require('./database')
 
@@ -14,6 +14,7 @@ class Connection {
 
   constructor(socket) {
     this._socket = socket
+    this.send(['AUTH', this.challenge])
   }
 
   cleanup() {
@@ -58,6 +59,32 @@ class Connection {
   }
 
   // Verb-specific handlers
+
+  async onAUTH(event) {
+    if (!hasValidSignature(event)) {
+      return this.send(['OK', event.id, false, "invalid signature"])
+    }
+
+    if (event.kind !== 22242) {
+      return this.send(['OK', event.id, false, "invalid kind"])
+    }
+
+    if (event.created_at > ago(5, MINUTE) && event.created_at < now() + int(5, MINUTE)) {
+      return this.send(['OK', event.id, false, "created_at is too far from current time"])
+    }
+
+    if (getTagValue('challenge', event.tags) !== this.challenge) {
+      return this.send(['OK', event.id, false, "invalid challenge"])
+    }
+
+    if (getTagValue('relay', event.tags) !== this._socket.request.url) {
+      return this.send(['OK', event.id, false, "invalid relay"])
+    }
+
+    this.auth.event = event
+
+    return this.send(['OK', event.id, true, ""])
+  }
 
   async onREQ(id, ...filters) {
     if (!this.auth.event) {
