@@ -13,7 +13,7 @@ const _err = (res, status, error) => res.status(status).send({error})
 const _ok = (res, status = 200) => res.status(status).send({ok: true})
 
 const handleNip11 = async (req, res) => {
-  res.set({'Content-Type': 'application/nostr+json'})
+  res.set({'Content-Type': 'application/nostr+json; charset=utf-8'})
 
   res.json({
     name: "Anchor",

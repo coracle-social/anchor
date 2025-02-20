@@ -3,9 +3,9 @@ import crypto from 'crypto'
 import { getTagValues, getAddress } from '@welshman/util'
 import { NOTIFIER_SUBSCRIPTION } from './env.js'
 
-const db = new sqlite3.Database('anchor.db')
+export const db = new sqlite3.Database('anchor.db')
 
-const migrate = () => {
+export const migrate = () => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       db.run(`
@@ -37,19 +37,19 @@ const migrate = () => {
   })
 }
 
-const run = (query, params) =>
+export const run = (query, params) =>
   new Promise((resolve, reject) => {
     db.run(query, params, function(err) {
       return err ? reject(err) : resolve(this.changes > 0)
     })
   })
 
-const all = (query, params) =>
+export const all = (query, params) =>
   new Promise((resolve, reject) => {
     db.all(query, params, (err, rows) => err ? reject(err) : resolve(rows))
   })
 
-const get = (query, params, cb) =>
+export const get = (query, params, cb) =>
   new Promise((resolve, reject) => {
     db.get(query, params, (err, row) => {
       if (err) {
@@ -62,12 +62,12 @@ const get = (query, params, cb) =>
     })
   })
 
-const exists = (query, params) =>
+export const exists = (query, params) =>
   get(query, params, () => true)
 
 // Email confirmation/unsubscription
 
-const addEmail = async ({email}) => {
+export const addEmail = async ({email}) => {
   const access_token = crypto.randomBytes(32).toString('hex')
   const confirm_token = crypto.randomBytes(32).toString('hex')
 
@@ -79,17 +79,17 @@ const addEmail = async ({email}) => {
   return confirm_token
 }
 
-const removeEmail = async ({email}) => {
+export const removeEmail = async ({email}) => {
   await run(`DELETE FROM emails WHERE email = ?`, [email])
 }
 
-const authenticateEmail = ({email, access_token}) =>
+export const authenticateEmail = ({email, access_token}) =>
   exists(
     `SELECT email FROM emails WHERE email = ? AND access_token = ?`,
     [email, access_token]
   )
 
-const confirmEmail = ({email, confirm_token}) =>
+export const confirmEmail = ({email, confirm_token}) =>
   run(
     `UPDATE emails SET confirmed_at = unixepoch(), confirm_token = null
      WHERE email = ? AND confirm_token = ? AND confirmed_at IS NULL`,
@@ -98,7 +98,7 @@ const confirmEmail = ({email, confirm_token}) =>
 
 // Subscription management
 
-const addDelete = async (event) => {
+export const addDelete = async (event) => {
   for (const address of getTagValues('a', event.tags)) {
     const [kind, pubkey] = address.split(':')
 
@@ -122,7 +122,7 @@ const addDelete = async (event) => {
   }
 }
 
-const addSubscription = async (event, tags) => {
+export const addSubscription = async (event, tags) => {
   const address = getAddress(event)
 
   const deleted = await exists(
@@ -142,19 +142,8 @@ const addSubscription = async (event, tags) => {
   }
 }
 
-const getSubscriptionsForPubkey = async (pubkey) => {
+export const getSubscriptionsForPubkey = async (pubkey) => {
   const rows = await all(`SELECT * FROM subscriptions WHERE pubkey = ?`, [pubkey])
 
   return rows?.map(row => ({...row, event: JSON.parse(row.event), tags: JSON.parse(row.tags)}))
-}
-
-export {
-  migrate,
-  addEmail,
-  removeEmail,
-  authenticateEmail,
-  confirmEmail,
-  addDelete,
-  addSubscription,
-  getSubscriptionsForPubkey,
 }

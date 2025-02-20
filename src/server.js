@@ -1,12 +1,10 @@
 import express from 'express'
 import addWebsockets from 'express-ws'
 import rateLimit from 'express-rate-limit'
-import { PORT } from './env.js'
-import { migrate } from './database.js'
 import { Connection } from './relay.js'
 import { handleEmailConfirm, handleEmailRemove, handleNip11, handleUnsubscribe } from './handlers.js'
 
-const server = express()
+export const server = express()
 
 addWebsockets(server)
 
@@ -24,10 +22,4 @@ server.ws('/', socket => {
   socket.on('message', msg => connection.handle(msg))
   socket.on('error', () => connection.cleanup())
   socket.on('close', () => connection.cleanup())
-})
-
-migrate().then(() => {
-  server.listen(PORT, () => {
-    console.log('Running on port', PORT)
-  })
 })
