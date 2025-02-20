@@ -7,7 +7,7 @@ export default [
   {
     files: ["src/**/*.js"],
     languageOptions: {
-      sourceType: "commonjs",
+      sourceType: "module",
       globals: globals.node,
     },
     rules: {

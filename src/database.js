@@ -1,7 +1,7 @@
-const sqlite3 = require('sqlite3')
-const crypto = require('crypto')
-const {getTagValues, getAddress} = require('@welshman/util')
-const {NOTIFIER_SUBSCRIPTION} = require('./env')
+import sqlite3 from 'sqlite3'
+import crypto from 'crypto'
+import { getTagValues, getAddress } from '@welshman/util'
+import { NOTIFIER_SUBSCRIPTION } from './env.js'
 
 const db = new sqlite3.Database('anchor.db')
 
@@ -13,7 +13,7 @@ const migrate = () => {
           email TEXT PRIMARY KEY,
           access_token TEXT,
           confirmed_at INTEGER,
-          confirm_token TEXT,
+          confirm_token TEXT
         )
       `)
       db.run(`
@@ -111,7 +111,7 @@ const addDelete = async (event) => {
     }
 
     await run(
-      `INSERT INTO deletes (created_at, address) VALUES (?, ?, ?)`,
+      `INSERT INTO deletes (created_at, address) VALUES (?, ?)`,
       [event.created_at, address]
     )
 
@@ -133,9 +133,9 @@ const addSubscription = async (event, tags) => {
   if (!deleted) {
     await run(
       `INSERT INTO subscriptions (address, pubkey, event, tags) VALUES (?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
+       ON CONFLICT(address) DO UPDATE SET
         pubkey=excluded.pubkey,
-        event=excluded.event
+        event=excluded.event,
         tags=excluded.tags`,
       [address, event.pubkey, JSON.stringify(event), JSON.stringify(tags)]
     )
@@ -148,7 +148,7 @@ const getSubscriptionsForPubkey = async (pubkey) => {
   return rows?.map(row => ({...row, event: JSON.parse(row.event), tags: JSON.parse(row.tags)}))
 }
 
-module.exports = {
+export {
   migrate,
   addEmail,
   removeEmail,

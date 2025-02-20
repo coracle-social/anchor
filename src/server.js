@@ -1,10 +1,10 @@
-const express = require('express')
-const addWebsockets = require('express-ws')
-const {rateLimit} = require('express-rate-limit')
-const {PORT} = require('./env')
-const {migrate} = require('./database')
-const {Connection} = require('./relay')
-const {handleEmailConfirm, handleEmailRemove, handleNip11, handleUnsubscribe} = require('./handlers')
+import express from 'express'
+import addWebsockets from 'express-ws'
+import rateLimit from 'express-rate-limit'
+import { PORT } from './env.js'
+import { migrate } from './database.js'
+import { Connection } from './relay.js'
+import { handleEmailConfirm, handleEmailRemove, handleNip11, handleUnsubscribe } from './handlers.js'
 
 const server = express()
 

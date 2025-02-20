@@ -1,7 +1,12 @@
-const fs = require('fs').promises
-const path = require('path')
-const {appSigner} = require('./env')
-const {confirmEmail, authenticateEmail, removeEmail} = require('./database')
+import { promises as fs } from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { appSigner } from './env.js'
+import { confirmEmail, authenticateEmail, removeEmail } from './database.js'
+
+const __filename = fileURLToPath(import.meta.url)
+
+const __dirname = path.dirname(__filename)
 
 const _err = (res, status, error) => res.status(status).send({error})
 
@@ -56,4 +61,4 @@ const handleUnsubscribe = async (req, res) => {
   res.send(html)
 }
 
-module.exports = {handleNip11, handleEmailConfirm, handleEmailRemove, handleUnsubscribe}
+export { handleNip11, handleEmailConfirm, handleEmailRemove, handleUnsubscribe }

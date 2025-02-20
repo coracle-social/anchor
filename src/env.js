@@ -1,5 +1,5 @@
-const dotenv = require('dotenv')
-const {Nip01Signer} = require('@welshman/signer')
+import dotenv from 'dotenv'
+import { Nip01Signer } from '@welshman/signer'
 
 dotenv.config({path: ".env.local"})
 dotenv.config({path: ".env"})
@@ -10,13 +10,11 @@ if (!process.env.MAILGUN_API_KEY) throw new Error('MAILGUN_API_KEY is not define
 if (!process.env.MAILGUN_DOMAIN) throw new Error('MAILGUN_DOMAIN is not defined.')
 if (!process.env.PORT) throw new Error('PORT is not defined.')
 
-module.exports = {
-  ANCHOR_NAME: process.env.ANCHOR_NAME,
-  appSigner: Nip01Signer.fromSecret(process.env.ANCHOR_SECRET),
-  LOG_RELAY_MESSAGES: process.env.LOG_RELAY_MESSAGES === "true",
-  MAILGUN_API_KEY: process.env.MAILGUN_API_KEY,
-  MAILGUN_DOMAIN: process.env.MAILGUN_DOMAIN,
-  PORT: process.env.PORT,
-  NOTIFIER_SUBSCRIPTION: 32830,
-  NOTIFIER_STATUS: 32831,
-}
+export const ANCHOR_NAME = process.env.ANCHOR_NAME
+export const appSigner = Nip01Signer.fromSecret(process.env.ANCHOR_SECRET)
+export const LOG_RELAY_MESSAGES = process.env.LOG_RELAY_MESSAGES === "true"
+export const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY
+export const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN
+export const PORT = process.env.PORT
+export const NOTIFIER_SUBSCRIPTION = 32830
+export const NOTIFIER_STATUS = 32831

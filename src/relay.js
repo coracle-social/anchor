@@ -1,8 +1,8 @@
-const {decrypt} = require('@welshman/signer')
-const {parseJson, ago, MINUTE, now, int, randomId, tryCatch} = require('@welshman/lib')
-const {DELETE, matchFilters, getTagValue, getTagValues, createEvent, hasValidSignature} = require('@welshman/util')
-const {appSigner, LOG_RELAY_MESSAGES, NOTIFIER_STATUS, NOTIFIER_SUBSCRIPTION} = require('./env')
-const {addDelete, addSubscription, getSubscriptionsForPubkey} = require('./database')
+import { decrypt } from '@welshman/signer'
+import { parseJson, ago, MINUTE, now, int, randomId, tryCatch } from '@welshman/lib'
+import { DELETE, matchFilters, getTagValue, getTagValues, createEvent, hasValidSignature } from '@welshman/util'
+import { appSigner, LOG_RELAY_MESSAGES, NOTIFIER_STATUS, NOTIFIER_SUBSCRIPTION } from './env.js'
+import { addDelete, addSubscription, getSubscriptionsForPubkey } from './database.js'
 
 class Connection {
   auth = {
@@ -166,4 +166,4 @@ class Connection {
   }
 }
 
-module.exports = {Connection}
+export { Connection }
