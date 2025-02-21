@@ -1,0 +1,32 @@
+<mjml>
+  <mj-head>
+    <mj-title>Digest Email</mj-title>
+    <mj-style inline="inline">
+      .header { font-size: 24px; font-weight: bold; }
+      .subheader { font-size: 16px; color: #555; }
+      .event-item { margin-bottom: 10px; }
+    </mj-style>
+  </mj-head>
+  <mj-body>
+    <mj-section background-color="#f0f0f0" padding="20px">
+      <mj-column>
+        <mj-text css-class="header">Hello {{name}},</mj-text>
+        <mj-text css-class="subheader">
+          You have received {{eventCount}} new events.
+        </mj-text>
+        <mj-divider border-color="#cccccc" />
+        <mj-text font-size="14px" line-height="1.5">
+          <!-- Loop over events; implement your own templating logic -->
+          {{#each events}}
+            <div class="event-item">
+              <p>{{this}}</p>
+            </div>
+          {{/each}}
+        </mj-text>
+        <mj-button background-color="#F45E43" color="#ffffff" href="{{unsubscribeUrl}}">
+          Unsubscribe
+        </mj-button>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

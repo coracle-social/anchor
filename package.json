@@ -2,7 +2,8 @@
   "name": "anchor",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run build:mjml",
+    "build:mjml": "tsc && mjml src/emails/*.mjml -o src/emails/",
     "lint": "eslint src",
     "start": "node dist/index.js",
     "test": "node --test test/*.test.js",
@@ -35,6 +36,7 @@
     "express-rate-limit": "^7.4.1",
     "express-ws": "^5.0.2",
     "mailgun.js": "^11.1.0",
+    "mjml": "^4.15.1",
     "nostr-tools": "^2.10.3",
     "sqlite3": "^5.1.7",
     "ts-node-dev": "^2.0.0",

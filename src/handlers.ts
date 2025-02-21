@@ -1,9 +1,7 @@
-import { promises as fs } from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
 import { Request, Response } from 'express'
 import { appSigner } from './env.js'
 import { confirmEmail, authenticateEmail, removeEmail } from './database.js'
+import { render } from './templates.js'
 
 // Utils
 
@@ -13,20 +11,6 @@ const _err = (res: Response, status: number, error: string) => {
 
 const _ok = (res: Response, status = 200) => {
   res.status(status).send({ok: true})
-}
-
-const __filename = fileURLToPath(import.meta.url)
-
-const __dirname = path.dirname(__filename)
-
-const render = async (template: string, data: Record<string, any>) => {
-  let result = await fs.readFile(path.join(__dirname, `templates/${template}`), 'utf8')
-
-  for (const [k, v] of Object.entries(data)) {
-    result = result.replace(`{{${k}}}`, v)
-  }
-
-  return result
 }
 
 // Endpoints
@@ -69,7 +53,7 @@ const handleEmailRemove = async (req: Request, res: Response) => {
 }
 
 const handleUnsubscribe = async (req: Request, res: Response) => {
-  res.send(await render('unsubscribe.html', req.query))
+  res.send(await render('pages/unsubscribe.html', req.query))
 }
 
 export { handleNip11, handleEmailConfirm, handleEmailRemove, handleUnsubscribe }
