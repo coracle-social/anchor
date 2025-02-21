@@ -8,7 +8,7 @@ const createJob = (subscription: Subscription) => {
     console.log('running subscription', subscription)
   }
 
-  new CronJob("0,10,20,30,40,50 * * * * *", run, null, true, 'UTC')
+  new CronJob("0 * * * * *", run, null, true, 'UTC')
 }
 
 export const registerSubscription = (subscription: Subscription) => {

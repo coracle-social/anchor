@@ -51,14 +51,22 @@
       <div id="message" class="message">Processing your request...</div>
     </div>
     <script>
+      const sanitize = (text: string) => {
+        const element = document.createElement("div")
+
+        element.innerText = value
+
+        return element.innerHTML
+      }
+
       fetch('/email/unsubscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          email: '{{email}}',
-          access_token: '{{token}}'
+          email: sanitize('{{email}}'),
+          access_token: sanitize('{{token}}')
         })
       })
       .then(response => response.json())

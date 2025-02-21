@@ -5,8 +5,7 @@ import { Request, Response } from 'express'
 import { appSigner } from './env.js'
 import { confirmEmail, authenticateEmail, removeEmail } from './database.js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+// Utils
 
 const _err = (res: Response, status: number, error: string) => {
   res.status(status).send({error})
@@ -15,6 +14,22 @@ const _err = (res: Response, status: number, error: string) => {
 const _ok = (res: Response, status = 200) => {
   res.status(status).send({ok: true})
 }
+
+const __filename = fileURLToPath(import.meta.url)
+
+const __dirname = path.dirname(__filename)
+
+const render = (template: string, data: Record<string, any>) => {
+  let result = await fs.readFile(path.join(__dirname, `templates/${template}`), 'utf8')
+
+  for (const [k, v] of Object.entries(data)) {
+    result = result.replace(`{{${k}}}`, v)
+  }
+
+  return result
+}
+
+// Endpoints
 
 const handleNip11 = async (_req: Request, res: Response) => {
   res.set({'Content-Type': 'application/nostr+json; charset=utf-8'})
@@ -45,25 +60,16 @@ const handleEmailRemove = async (req: Request, res: Response) => {
 
   const authenticated = await authenticateEmail({email, access_token})
 
-  if (!authenticated) {
+  if (authenticated) {
+    await removeEmail({email})
+    _ok(res)
+  } else {
     _err(res, 401, "Invalid access token")
-    return
   }
-
-  await removeEmail({email})
-
-  _ok(res)
 }
 
 const handleUnsubscribe = async (req: Request, res: Response) => {
-  const {email, token} = req.query
-
-  const template = await fs.readFile(path.join(__dirname, 'templates/unsubscribe.html'), 'utf8')
-  const html = template
-    .replace('{{email}}', email as string)
-    .replace('{{token}}', token as string)
-
-  res.send(html)
+  res.send(render('unsubscribe.html', req.query))
 }
 
 export { handleNip11, handleEmailConfirm, handleEmailRemove, handleUnsubscribe }
