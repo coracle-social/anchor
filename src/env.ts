@@ -1,8 +1,5 @@
-import dotenv from 'dotenv'
+import 'dotenv/config'
 import { Nip01Signer } from '@welshman/signer'
-
-dotenv.config({path: ".env.local"})
-dotenv.config({path: ".env"})
 
 if (!process.env.ANCHOR_NAME) throw new Error('ANCHOR_NAME is not defined.')
 if (!process.env.ANCHOR_SECRET) throw new Error('ANCHOR_SECRET is not defined.')
