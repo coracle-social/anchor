@@ -1,5 +1,5 @@
 import {CronExpressionParser} from 'cron-parser'
-import {tryCatch, isPojo, fromPairs, int, HOUR} from '@welshman/lib'
+import {tryCatch, parseJson, isPojo, fromPairs, int, HOUR} from '@welshman/lib'
 import type {SignedEvent, Filter} from '@welshman/util'
 import {isShareableRelayUrl, getTagValues, createEvent, getTagValue} from '@welshman/util'
 import {appSigner, NOTIFIER_STATUS} from './env.js'
@@ -47,7 +47,7 @@ export const getChannelParams = (subscription: Subscription) => {
 export const getSubscriptionParams = (subscription: Subscription) => {
   const {channel, cron, bunker_url, pause_until} = fromPairs(subscription.tags)
   const relays = getTagValues('relay', subscription.tags)
-  const filters = getTagValues('filter', subscription.tags)
+  const filters = getTagValues('filter', subscription.tags).map(parseJson)
   const params = getChannelParams(subscription)
 
   return {channel, cron, relays, filters, params, bunker_url, pause_until}

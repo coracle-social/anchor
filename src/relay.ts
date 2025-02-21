@@ -113,7 +113,6 @@ export class Connection {
 
     const userPubkey = this.auth.event.pubkey
     const subscriptions = await getSubscriptionsForPubkey(userPubkey)
-
     const subscriptionEvents = pluck<SignedEvent>('event', subscriptions)
     const statusEvents = await Promise.all(subscriptions.map(createStatusEvent))
 
@@ -161,11 +160,17 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Subscription has been deleted'])
     }
 
-    const plaintext = await tryCatch(() => decrypt(appSigner, event.pubkey, event.content))
-    const tags = await tryCatch(() => parseJson(plaintext))
+    let plaintext: string
+    try {
+      plaintext = await decrypt(appSigner, event.pubkey, event.content)
+    } catch (e) {
+      return this.send(['OK', event.id, false, 'Failed to decrypt event content'])
+    }
+
+    const tags = parseJson(plaintext)
 
     if (!Array.isArray(tags)) {
-      return this.send(['OK', event.id, false, 'Failed to decrypt event content'])
+      return this.send(['OK', event.id, false, 'Encrypted tags are not an array'])
     }
 
     registerSubscription(await addSubscription(event, tags))
