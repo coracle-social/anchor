@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws'
 import { Request } from 'express'
 import { decrypt } from '@welshman/signer'
-import { parseJson, pluck, ago, MINUTE, randomId, tryCatch } from '@welshman/lib'
+import { parseJson, pluck, ago, MINUTE, randomId } from '@welshman/lib'
 import type { SignedEvent, Filter } from '@welshman/util'
 import { DELETE, matchFilters, getTagValue, getTagValues, hasValidSignature } from '@welshman/util'
 import { appSigner, LOG_RELAY_MESSAGES, NOTIFIER_SUBSCRIPTION } from './env.js'

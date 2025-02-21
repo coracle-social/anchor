@@ -39,7 +39,10 @@ export const sendDigest = async (user: EmailUser, template: string, events: Trus
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
     to: user.email,
     subject: 'New activity',
-    html: render('emails/digest.html', {
+    html: await render('emails/digest.html', {
+      name: user.email.split('@')[0],
+      eventCount: events.length,
+      events: events.map(e => ({content: e.content})),
       unsubscribeUrl: `${ANCHOR_URL}/email/unsubscribe?email=${encodeURIComponent(user.email)}&access_token=${user.access_token}`
     }),
   })

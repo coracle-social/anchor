@@ -21,8 +21,8 @@ export const load = (request: SubscribeRequestWithHandlers) =>
   })
 
 const createJob = (subscription: Subscription) => {
-  const {cron, relays, filters, handlers, email, bunker_url, pause_until = 0} = getSubscriptionParams(subscription)
-  const since = Math.max(pause_until, subscription.event.created_at)
+  const {cron, relays, filters, handlers, email, pause_until} = getSubscriptionParams(subscription)
+  const since = Math.max(pause_until || 0, subscription.event.created_at)
   const webHandlers = handlers.filter(nthEq(3, 'web'))
 
   const getUser = async () => {

@@ -1,17 +1,24 @@
-import { promises as fs } from 'fs'
-import { fileURLToPath } from 'url'
+import fs from 'fs'
 import path from 'path'
+import { fileURLToPath } from 'url'
+import Mustache from 'mustache'
 
 const __filename = fileURLToPath(import.meta.url)
-
 const __dirname = path.dirname(__filename)
 
-export const render = async (template: string, data: Record<string, any>) => {
-  let result = await fs.readFile(path.join(__dirname, template), 'utf8')
+// Cache templates to avoid reading from disk on every render
+const templateCache = new Map<string, string>()
 
-  for (const [k, v] of Object.entries(data)) {
-    result = result.replace(`{{${k}}}`, v)
+const loadTemplate = async (name: string) => {
+  if (!templateCache.has(name)) {
+    const templatePath = path.join(__dirname, name)
+    const template = await fs.promises.readFile(templatePath, 'utf8')
+
+    templateCache.set(name, template)
   }
 
-  return result
+  return templateCache.get(name)!
 }
+
+export const render = async (name: string, view: Record<string, any>) =>
+  Mustache.render(await loadTemplate(name), view)

@@ -16,12 +16,11 @@
         </mj-text>
         <mj-divider border-color="#cccccc" />
         <mj-text font-size="14px" line-height="1.5">
-          <!-- Loop over events; implement your own templating logic -->
-          {{#each events}}
+          {{#events}}
             <div class="event-item">
-              <p>{{this}}</p>
+              <p>{{content}}</p>
             </div>
-          {{/each}}
+          {{/events}}
         </mj-text>
         <mj-button background-color="#F45E43" color="#ffffff" href="{{unsubscribeUrl}}">
           Unsubscribe
