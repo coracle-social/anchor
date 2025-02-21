@@ -2,7 +2,7 @@ import sqlite3 from 'sqlite3'
 import crypto from 'crypto'
 import type { SignedEvent } from '@welshman/util'
 import { getTagValues, getAddress } from '@welshman/util'
-import type {Subscription} from './types.js'
+import type {Subscription} from './domain.js'
 import { NOTIFIER_SUBSCRIPTION } from './env.js'
 
 export const db = new sqlite3.Database('anchor.db')

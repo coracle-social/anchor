@@ -28,6 +28,7 @@
     "@welshman/util": "~0.0.61",
     "bcrypt": "^5.1.1",
     "cron": "^4.0.0",
+    "cron-parser": "^5.0.3",
     "dotenv": "^16.3.1",
     "express": "^4.21.1",
     "express-rate-limit": "^7.4.1",

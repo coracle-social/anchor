@@ -19,7 +19,7 @@ const __filename = fileURLToPath(import.meta.url)
 
 const __dirname = path.dirname(__filename)
 
-const render = (template: string, data: Record<string, any>) => {
+const render = async (template: string, data: Record<string, any>) => {
   let result = await fs.readFile(path.join(__dirname, `templates/${template}`), 'utf8')
 
   for (const [k, v] of Object.entries(data)) {
@@ -69,7 +69,7 @@ const handleEmailRemove = async (req: Request, res: Response) => {
 }
 
 const handleUnsubscribe = async (req: Request, res: Response) => {
-  res.send(render('unsubscribe.html', req.query))
+  res.send(await render('unsubscribe.html', req.query))
 }
 
 export { handleNip11, handleEmailConfirm, handleEmailRemove, handleUnsubscribe }

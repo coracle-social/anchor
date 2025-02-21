@@ -1,5 +1,5 @@
 import {CronJob} from 'cron'
-import type {Subscription} from './types.js'
+import type {Subscription} from './domain.js'
 
 const jobsByAddress = new Map()
 

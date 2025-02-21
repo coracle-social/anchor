@@ -2,7 +2,7 @@ import FormData from 'form-data'
 import Mailgun from 'mailgun.js'
 import {MAILGUN_API_KEY, MAILGUN_DOMAIN, ANCHOR_NAME} from './env.js'
 
-// @ts-ignore
+// @ts-expect-error Mailgun has no constructor signature
 const mailgun = new Mailgun(FormData)
 
 const mg = mailgun.client({username: 'api', key: MAILGUN_API_KEY})

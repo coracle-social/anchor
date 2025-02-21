@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express'
+import express, { Request } from 'express'
 import addWebsockets, { Application } from 'express-ws'
 import rateLimit from 'express-rate-limit'
 import { WebSocket } from 'ws'

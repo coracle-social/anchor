@@ -1,12 +1,13 @@
+import { WebSocket } from 'ws'
+import { Request } from 'express'
 import { decrypt } from '@welshman/signer'
 import { parseJson, pluck, ago, MINUTE, randomId, tryCatch } from '@welshman/lib'
 import type { SignedEvent, Filter } from '@welshman/util'
-import { DELETE, matchFilters, getTagValue, getTagValues, createEvent, hasValidSignature } from '@welshman/util'
-import { appSigner, LOG_RELAY_MESSAGES, NOTIFIER_STATUS, NOTIFIER_SUBSCRIPTION } from './env.js'
+import { DELETE, matchFilters, getTagValue, getTagValues, hasValidSignature } from '@welshman/util'
+import { appSigner, LOG_RELAY_MESSAGES, NOTIFIER_SUBSCRIPTION } from './env.js'
 import { addDelete, addSubscription, getSubscriptionsForPubkey, isSubscriptionDeleted } from './database.js'
 import { registerSubscription } from './worker.js'
-import { WebSocket } from 'ws'
-import { Request } from 'express'
+import { createStatusEvent } from './domain.js'
 
 type AuthState = {
   challenge: string
@@ -114,28 +115,9 @@ export class Connection {
     const subscriptions = await getSubscriptionsForPubkey(userPubkey)
 
     const subscriptionEvents = pluck<SignedEvent>('event', subscriptions)
-    const subscriptionStatusEvents = await Promise.all(
-      subscriptions.map(
-        async (subscription) =>
-          appSigner.sign(
-            createEvent(NOTIFIER_STATUS, {
-              content: await appSigner.nip44.encrypt(
-                userPubkey,
-                JSON.stringify([
-                  ["status", "ok"],
-                  ["message", "This subscription is active"],
-                ])
-              ),
-              tags: [
-                ["a", subscription.address],
-                ["p", subscription.pubkey],
-              ],
-            })
-          )
-      )
-    )
+    const statusEvents = await Promise.all(subscriptions.map(createStatusEvent))
 
-    for (const event of [...subscriptionEvents, ...subscriptionStatusEvents]) {
+    for (const event of [...subscriptionEvents, ...statusEvents]) {
       if (matchFilters(filters, event)) {
         this.send(['EVENT', id, event])
       }
