@@ -2,7 +2,7 @@ import sqlite3 from 'sqlite3'
 import crypto from 'crypto'
 import type { SignedEvent } from '@welshman/util'
 import { getTagValues, getAddress } from '@welshman/util'
-import type {Subscription} from './domain.js'
+import type {Subscription, EmailUser} from './domain.js'
 import { NOTIFIER_SUBSCRIPTION } from './env.js'
 
 export const db = new sqlite3.Database('anchor.db')
@@ -49,18 +49,18 @@ export const run = (query: string, params: Param[] = []) =>
     })
   })
 
-export const all = (query: string, params: Param[] = []) =>
-  new Promise<Row[]>((resolve, reject) => {
-    db.all(query, params, (err, rows: Row[]) => err ? reject(err) : resolve(rows))
+export const all = <T=Row>(query: string, params: Param[] = []) =>
+  new Promise<T[]>((resolve, reject) => {
+    db.all(query, params, (err, rows: T[]) => err ? reject(err) : resolve(rows))
   })
 
-export const get = (query: string, params: Param[] = []) =>
-  new Promise<Row | undefined>((resolve, reject) => {
+export const get = <T=Row>(query: string, params: Param[] = []) =>
+  new Promise<T | undefined>((resolve, reject) => {
     db.get(query, params, (err, row) => {
       if (err) {
         reject(err)
       } else if (row) {
-        resolve(row)
+        resolve(row as T)
       } else {
         resolve(undefined)
       }
@@ -74,7 +74,7 @@ export const exists = (query: string, params: Param[] = []) =>
 
 // Email confirmation/unsubscription
 
-export const addEmail = async ({email}: {email: string}) => {
+export const addEmail = async ({email}: {email: string}): Promise<EmailUser> => {
   const access_token = crypto.randomBytes(32).toString('hex')
   const confirm_token = crypto.randomBytes(32).toString('hex')
 
@@ -83,20 +83,23 @@ export const addEmail = async ({email}: {email: string}) => {
     [email, access_token, confirm_token],
   )
 
-  return confirm_token
+  return {email, confirm_token, access_token}
 }
 
-export const removeEmail = async ({email}: {email: string}) => {
-  await run(`DELETE FROM emails WHERE email = ?`, [email])
-}
+export const getEmail = (email: string) =>
+  get<EmailUser>(`SELECT * FROM emails WHERE email = ?`, [email])
 
-export const authenticateEmail = ({email, access_token}: {email: string, access_token: string}) =>
+
+export const removeEmail = ({email}: {email: string}) =>
+  run(`DELETE FROM emails WHERE email = ?`, [email])
+
+export const authenticateEmail = ({email, access_token}: Pick<EmailUser, 'email' | 'access_token'>) =>
   exists(
     `SELECT email FROM emails WHERE email = ? AND access_token = ?`,
     [email, access_token]
   )
 
-export const confirmEmail = ({email, confirm_token}: {email: string, confirm_token: string}) =>
+export const confirmEmail = ({email, confirm_token}: Pick<EmailUser, 'email' | 'confirm_token'>) =>
   run(
     `UPDATE emails SET confirmed_at = unixepoch(), confirm_token = null
      WHERE email = ? AND confirm_token = ? AND confirmed_at IS NULL`,

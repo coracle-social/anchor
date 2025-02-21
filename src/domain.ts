@@ -1,8 +1,14 @@
 import {CronExpressionParser} from 'cron-parser'
 import {tryCatch, parseJson, isPojo, fromPairs, int, HOUR} from '@welshman/lib'
 import type {SignedEvent, Filter} from '@welshman/util'
-import {isShareableRelayUrl, getTagValues, createEvent, getTagValue} from '@welshman/util'
+import {isShareableRelayUrl, getTags, getTagValues, createEvent, getTagValue} from '@welshman/util'
 import {appSigner, NOTIFIER_STATUS} from './env.js'
+
+export type EmailUser = {
+  email: string
+  confirm_token: string
+  access_token: string
+}
 
 export type Subscription = {
   address: string
@@ -11,55 +17,52 @@ export type Subscription = {
   tags: string[][]
 }
 
-export type ChannelParamsEmail = {
-  email: string
+export enum Channel {
+  None = 'none',
+  Push = 'push',
+  Email = 'email',
 }
-
-export type ChannelParamsPush = {
-  token: string
-  platform: string
-}
-
-export type ChannelParams =
-  | ChannelParamsEmail
-  | ChannelParamsPush
 
 export type SubscriptionParams = {
   cron: string
   relays: string[]
   filters: Filter[]
-  channel: string
-  params: ChannelParams
+  handlers: string[][]
+  channel: Channel
   bunker_url?: string
   pause_until?: number
+  email?: string
+  token?: string
+  platform?: string
 }
 
 export const getChannelParams = (subscription: Subscription) => {
   const {channel, email, token, platform} = fromPairs(subscription.tags)
 
   switch (channel) {
-    case 'email': return {email}
-    case 'push': return {token, platform}
-    default: throw new Error(`Unsupported channel ${channel}`)
+    case Channel.Email: return {email}
+    case Channel.Push: return {token, platform}
+    default: return {}
   }
 }
 
-export const getSubscriptionParams = (subscription: Subscription) => {
-  const {channel, cron, bunker_url, pause_until} = fromPairs(subscription.tags)
-  const relays = getTagValues('relay', subscription.tags)
-  const filters = getTagValues('filter', subscription.tags).map(parseJson)
-  const params = getChannelParams(subscription)
-
-  return {channel, cron, relays, filters, params, bunker_url, pause_until}
+export const getSubscriptionParams = (subscription: Subscription): SubscriptionParams => {
+  return {
+    channel: getTagValue('channel', subscription.tags) as Channel,
+    cron: getTagValue('cron', subscription.tags) || "0 0 0 0 0 0",
+    handlers: getTags('handler', subscription.tags),
+    relays: getTagValues('relay', subscription.tags),
+    filters: getTagValues('filter', subscription.tags).map(parseJson),
+    pause_until: parseInt(getTagValue('pause_until', subscription.tags) || "") || 0,
+    bunker_url: getTagValue('cron', subscription.tags),
+    ...getChannelParams(subscription),
+  }
 }
 
 export const getSubscriptionError = (subscription: Subscription) => {
-  const channel = getTagValue('channel', subscription.tags)
+  const {channel, cron, relays, filters} = getSubscriptionParams(subscription)
 
-  if (channel !== 'email') return "Only email notifications are currently supported."
-
-  const {cron, relays, filters} = getSubscriptionParams(subscription)
-
+  if (channel !== Channel.Email) return "Only email notifications are currently supported."
   if (!cron) return "Immediate notifications are not currently supported."
 
   const interval = tryCatch(() => CronExpressionParser.parse(cron, {strict: true}))

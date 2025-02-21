@@ -66,7 +66,7 @@
         },
         body: JSON.stringify({
           email: sanitize('{{email}}'),
-          access_token: sanitize('{{token}}')
+          access_token: sanitize('{{access_token}}')
         })
       })
       .then(response => response.json())
