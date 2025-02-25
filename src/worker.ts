@@ -1,13 +1,17 @@
 import {CronJob} from 'cron'
-import {nth, assoc, nthEq} from '@welshman/lib'
+import {nth, assoc, nthEq, setContext} from '@welshman/lib'
 import type {TrustedEvent} from '@welshman/util'
 import {getIdFilters, getReplyFilters} from '@welshman/util'
-import {subscribe, SubscriptionEvent} from '@welshman/net'
+import {subscribe, SubscriptionEvent, getDefaultNetContext} from '@welshman/net'
 import type {SubscribeRequestWithHandlers} from '@welshman/net'
 import type {Subscription} from './domain.js'
-import {getSubscriptionParams} from './domain.js'
+import {getSubscriptionParams, getStatusTags} from './domain.js'
 import {getEmailUser} from './database.js'
 import {sendDigest} from './mailgun.js'
+
+setContext({
+  net: getDefaultNetContext() as any,
+})
 
 const jobsByAddress = new Map()
 
@@ -46,11 +50,13 @@ const createJob = (subscription: Subscription) => {
       }),
     ])
 
-    const context = await load({relays, filters: getReplyFilters(events)})
-    const handlerTemplates = handlerEvents.flatMap(e => e.tags.filter(nthEq(0, 'web')).map(nth(1)))
-    const handlerTemplate = handlerTemplates[0] || 'https://coracle.social/'
+    if (events.length > 0) {
+      const context = await load({relays, filters: getReplyFilters(events)})
+      const handlerTemplates = handlerEvents.flatMap(e => e.tags.filter(nthEq(0, 'web')).map(nth(1)))
+      const handlerTemplate = handlerTemplates[0] || 'https://coracle.social/'
 
-    sendDigest(user, handlerTemplate, events, context)
+      await sendDigest(user!, handlerTemplate, events, context)
+    }
 
     console.log('finished job', subscription.address, 'in', Date.now() - now, 'ms')
   }

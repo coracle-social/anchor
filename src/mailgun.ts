@@ -21,7 +21,7 @@ const send = (data: Record<string, any>) => {
 export const sendConfirmEmail = (user: EmailUser) => {
   const href = `${ANCHOR_URL}/confirm?email=${encodeURIComponent(user.email)}&confirm_token=${user.confirm_token}`
 
-  send({
+  return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
     to: user.email,
     subject: 'Confirm your email',
@@ -35,7 +35,7 @@ export const sendConfirmEmail = (user: EmailUser) => {
 }
 
 export const sendDigest = async (user: EmailUser, template: string, events: TrustedEvent[], context: TrustedEvent[]) => {
-  send({
+  return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
     to: user.email,
     subject: 'New activity',
