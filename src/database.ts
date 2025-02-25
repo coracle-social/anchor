@@ -167,4 +167,3 @@ export const getSubscriptionsForPubkey = async (pubkey: string) => {
 
   return rows.map(parseSubscription)
 }
-
