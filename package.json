@@ -6,8 +6,7 @@
     "build:mjml": "tsc && mjml src/emails/*.mjml -o src/emails/",
     "lint": "eslint src",
     "start": "node dist/index.js",
-    "test": "node --test test/*.test.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts"
+    "test": "node --test test/*.test.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",

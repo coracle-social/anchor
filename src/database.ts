@@ -27,6 +27,7 @@ export const migrate = () =>
       db.run(`
         CREATE TABLE IF NOT EXISTS subscriptions (
           address TEXT PRIMARY KEY,
+          created_at INTEGER NOT NULL,
           pubkey TEXT NOT NULL,
           event JSON NOT NULL,
           tags JSON NOT NULL
@@ -144,13 +145,14 @@ export const isSubscriptionDeleted = (event: SignedEvent) =>
 export const addSubscription = async (event: SignedEvent, tags: string[][]) =>
   parseSubscription(
     await get(
-      `INSERT INTO subscriptions (address, pubkey, event, tags) VALUES (?, ?, ?, ?)
+      `INSERT INTO subscriptions (address, created_at, pubkey, event, tags) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(address) DO UPDATE SET
+        created_at=excluded.created_at,
         pubkey=excluded.pubkey,
         event=excluded.event,
         tags=excluded.tags
        RETURNING *`,
-      [getAddress(event), event.pubkey, JSON.stringify(event), JSON.stringify(tags)]
+      [getAddress(event), event.created_at, event.pubkey, JSON.stringify(event), JSON.stringify(tags)]
     )
   )
 

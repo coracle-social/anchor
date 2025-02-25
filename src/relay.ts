@@ -70,11 +70,7 @@ export class Connection {
     ) => Promise<void>) | undefined
 
     if (handler) {
-      try {
-        handler.call(this, ...payload)
-      } catch (e) {
-        console.error(e)
-      }
+      handler.call(this, ...payload)
     } else {
       this.send(['NOTICE', '', `Unable to handle ${verb} message`])
     }
@@ -125,6 +121,10 @@ export class Connection {
     this.send(['EOSE', id])
   }
 
+  async onCLOSE(id: string) {
+    // pass
+  }
+
   async onEVENT(event: SignedEvent) {
     if (!hasValidSignature(event)) {
       return this.send(['OK', event.id, false, 'Invalid signature'])
@@ -139,8 +139,8 @@ export class Connection {
         this.send(['OK', event.id, false, 'Event kind not accepted'])
       }
     } catch (e) {
-      console.error(e)
       this.send(['OK', event.id, false, 'Unknown error'])
+      throw e
     }
   }
 
