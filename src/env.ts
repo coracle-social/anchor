@@ -11,7 +11,6 @@ if (!process.env.PORT) throw new Error('PORT is not defined.')
 export const ANCHOR_URL = process.env.ANCHOR_URL
 export const ANCHOR_NAME = process.env.ANCHOR_NAME
 export const appSigner = Nip01Signer.fromSecret(process.env.ANCHOR_SECRET)
-export const LOG_RELAY_MESSAGES = process.env.LOG_RELAY_MESSAGES === "true"
 export const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY
 export const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN
 export const PORT = process.env.PORT

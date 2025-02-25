@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { appSigner } from './env.js'
-import { confirmEmail, authenticateEmail, removeEmail } from './database.js'
+import { confirmEmailUser, authenticateEmailUser, removeEmailUser } from './database.js'
 import { render } from './templates.js'
 
 // Utils
@@ -15,7 +15,7 @@ const _ok = (res: Response, status = 200) => {
 
 // Endpoints
 
-const handleNip11 = async (_req: Request, res: Response) => {
+export const handleNip11 = async (_req: Request, res: Response) => {
   res.set({'Content-Type': 'application/nostr+json; charset=utf-8'})
 
   res.json({
@@ -27,10 +27,10 @@ const handleNip11 = async (_req: Request, res: Response) => {
   })
 }
 
-const handleEmailConfirm = async (req: Request, res: Response) => {
+export const handleEmailConfirm = async (req: Request, res: Response) => {
   const {email, confirm_token} = req.body
 
-  const confirmed = await confirmEmail({email, confirm_token})
+  const confirmed = await confirmEmailUser({email, confirm_token})
 
   if (confirmed) {
     _ok(res)
@@ -39,21 +39,23 @@ const handleEmailConfirm = async (req: Request, res: Response) => {
   }
 }
 
-const handleEmailRemove = async (req: Request, res: Response) => {
+export const handleEmailRemove = async (req: Request, res: Response) => {
   const {email, access_token} = req.body
 
-  const authenticated = await authenticateEmail({email, access_token})
+  const authenticated = await authenticateEmailUser({email, access_token})
 
   if (authenticated) {
-    await removeEmail({email})
+    await removeEmailUser({email})
     _ok(res)
   } else {
     _err(res, 401, "Invalid access token")
   }
 }
 
-const handleUnsubscribe = async (req: Request, res: Response) => {
-  res.send(await render('pages/unsubscribe.html', req.query))
+export const handleConfirm = async (req: Request, res: Response) => {
+  res.send(await render('pages/confirm.html', req.query))
 }
 
-export { handleNip11, handleEmailConfirm, handleEmailRemove, handleUnsubscribe }
+export const handleUnsubscribe = async (req: Request, res: Response) => {
+  res.send(await render('pages/unsubscribe.html', req.query))
+}

@@ -6,7 +6,7 @@ import {subscribe, SubscriptionEvent} from '@welshman/net'
 import type {SubscribeRequestWithHandlers} from '@welshman/net'
 import type {Subscription} from './domain.js'
 import {getSubscriptionError, getSubscriptionParams} from './domain.js'
-import {getEmail} from './database.js'
+import {getEmailUser} from './database.js'
 import {sendDigest} from './mailgun.js'
 
 const jobsByAddress = new Map()
@@ -25,39 +25,56 @@ const createJob = (subscription: Subscription) => {
   const since = Math.max(pause_until || 0, subscription.event.created_at)
   const webHandlers = handlers.filter(nthEq(3, 'web'))
 
-  const getUser = async () => {
-    if (email) {
-      return getEmail(email)
-    }
-  }
-
   const run = async () => {
-    const user = await getUser()
-
-    if (user) {
-      const [events, handlerEvents] = await Promise.all([
-        load({relays, filters: filters.map(assoc('since', since))}),
-        load({
-          relays: webHandlers.map(nth(2)),
-          filters: getIdFilters(webHandlers.map(nth(1))),
-        }),
-      ])
-
-      const context = await load({relays, filters: getReplyFilters(events)})
-      const handlerTemplates = handlerEvents.flatMap(e => e.tags.filter(nthEq(0, 'web')).map(nth(1)))
-      const handlerTemplate = handlerTemplates[0] || 'https://coracle.social/'
-
-      sendDigest(user, handlerTemplate, events, context)
+    if (!email) {
+      return console.log('skipping job with no email', subscription.address)
     }
+
+    const user = await getEmailUser(email)
+
+    if (!user?.confirmed_at) {
+      return console.log('skipping job with no confirmed user', subscription.address)
+    }
+
+    console.log('========', email, user)
+
+    const now = Date.now()
+
+    console.log('running job', subscription.address)
+
+    const [events, handlerEvents] = await Promise.all([
+      load({relays, filters: filters.map(assoc('since', since))}),
+      load({
+        relays: webHandlers.map(nth(2)),
+        filters: getIdFilters(webHandlers.map(nth(1))),
+      }),
+    ])
+
+    const context = await load({relays, filters: getReplyFilters(events)})
+    const handlerTemplates = handlerEvents.flatMap(e => e.tags.filter(nthEq(0, 'web')).map(nth(1)))
+    const handlerTemplate = handlerTemplates[0] || 'https://coracle.social/'
+
+    sendDigest(user, handlerTemplate, events, context)
+
+    console.log('finished job', subscription.address, 'in', Date.now() - now, 'ms')
   }
 
-  new CronJob(cron, run, null, true, 'UTC')
+  const job = CronJob.from({
+    cronTime: cron,
+    onTick: run,
+    start: true,
+    timeZone: 'UTC',
+  })
+
+  console.log('registered job', subscription.address, 'for', job.nextDate().toISO()!.slice(0, -8))
+
+  return job
 }
 
 export const registerSubscription = (subscription: Subscription) => {
   jobsByAddress.get(subscription.address)?.stop()
 
-  if (!getSubscriptionError(subscription)) {
+  if (!getSubscriptionError(getSubscriptionParams(subscription))) {
     jobsByAddress.set(subscription.address, createJob(subscription))
   }
 }

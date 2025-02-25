@@ -11,7 +11,7 @@ export const migrate = () =>
   new Promise<void>((resolve, reject) => {
     db.serialize(() => {
       db.run(`
-        CREATE TABLE IF NOT EXISTS emails (
+        CREATE TABLE IF NOT EXISTS email_users (
           email TEXT PRIMARY KEY,
           access_token TEXT,
           confirmed_at INTEGER,
@@ -75,34 +75,34 @@ export const exists = (query: string, params: Param[] = []) =>
 
 // Email confirmation/unsubscription
 
-export const addEmail = async ({email}: {email: string}): Promise<EmailUser> => {
+export const getEmailUser = (email: string) =>
+  get<EmailUser>(`SELECT * FROM email_users WHERE email = ?`, [email])
+
+export const addEmailUser = async ({email}: {email: string}) => {
   const access_token = crypto.randomBytes(32).toString('hex')
   const confirm_token = crypto.randomBytes(32).toString('hex')
 
-  await run(
-    `INSERT INTO emails (email, access_token, confirm_token) VALUES (?, ?, ?)`,
+  const user = await get<EmailUser>(
+    `INSERT INTO email_users (email, access_token, confirm_token) VALUES (?, ?, ?)
+     RETURNING *`,
     [email, access_token, confirm_token],
   )
 
-  return {email, confirm_token, access_token}
+  return user!
 }
 
-export const getEmail = (email: string) =>
-  get<EmailUser>(`SELECT * FROM emails WHERE email = ?`, [email])
+export const removeEmailUser = ({email}: {email: string}) =>
+  run(`DELETE FROM email_users WHERE email = ?`, [email])
 
-
-export const removeEmail = ({email}: {email: string}) =>
-  run(`DELETE FROM emails WHERE email = ?`, [email])
-
-export const authenticateEmail = ({email, access_token}: Pick<EmailUser, 'email' | 'access_token'>) =>
+export const authenticateEmailUser = ({email, access_token}: Pick<EmailUser, 'email' | 'access_token'>) =>
   exists(
-    `SELECT email FROM emails WHERE email = ? AND access_token = ?`,
+    `SELECT email FROM email_users WHERE email = ? AND access_token = ?`,
     [email, access_token]
   )
 
-export const confirmEmail = ({email, confirm_token}: Pick<EmailUser, 'email' | 'confirm_token'>) =>
+export const confirmEmailUser = ({email, confirm_token}: Pick<EmailUser, 'email' | 'confirm_token'>) =>
   run(
-    `UPDATE emails SET confirmed_at = unixepoch(), confirm_token = null
+    `UPDATE email_users SET confirmed_at = unixepoch(), confirm_token = null
      WHERE email = ? AND confirm_token = ? AND confirmed_at IS NULL`,
     [email, confirm_token],
   )

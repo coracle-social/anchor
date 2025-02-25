@@ -2,8 +2,9 @@
   "name": "anchor",
   "type": "module",
   "scripts": {
-    "build": "tsc && npm run build:mjml",
-    "build:mjml": "tsc && mjml src/emails/*.mjml -o src/emails/",
+    "build": "tsc && npm run build:html && npm run build:mjml",
+    "build:html": "cp -r src/pages dist/",
+    "build:mjml": "mjml src/emails/*.mjml -o src/emails/",
     "lint": "eslint src",
     "start": "node dist/index.js",
     "test": "node --test test/*.test.js"

@@ -19,7 +19,7 @@ const send = (data: Record<string, any>) => {
 }
 
 export const sendConfirmEmail = (user: EmailUser) => {
-  const href = `${ANCHOR_URL}/email/confirm?email=${encodeURIComponent(user.email)}&confirm_token=${user.confirm_token}`
+  const href = `${ANCHOR_URL}/confirm?email=${encodeURIComponent(user.email)}&confirm_token=${user.confirm_token}`
 
   send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
@@ -43,7 +43,7 @@ export const sendDigest = async (user: EmailUser, template: string, events: Trus
       name: user.email.split('@')[0],
       eventCount: events.length,
       events: events.map(e => ({content: e.content})),
-      unsubscribeUrl: `${ANCHOR_URL}/email/unsubscribe?email=${encodeURIComponent(user.email)}&access_token=${user.access_token}`
+      unsubscribeUrl: `${ANCHOR_URL}/unsubscribe?email=${encodeURIComponent(user.email)}&access_token=${user.access_token}`
     }),
   })
 }

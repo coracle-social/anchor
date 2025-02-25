@@ -4,8 +4,9 @@ import { decrypt } from '@welshman/signer'
 import { parseJson, pluck, ago, MINUTE, randomId } from '@welshman/lib'
 import type { SignedEvent, Filter } from '@welshman/util'
 import { DELETE, matchFilters, getTagValue, getTagValues, hasValidSignature } from '@welshman/util'
-import { appSigner, LOG_RELAY_MESSAGES, NOTIFIER_SUBSCRIPTION } from './env.js'
-import { addDelete, addSubscription, getSubscriptionsForPubkey, isSubscriptionDeleted } from './database.js'
+import { appSigner, NOTIFIER_SUBSCRIPTION } from './env.js'
+import { addDelete, addSubscription, addEmailUser, getEmailUser, getSubscriptionsForPubkey, isSubscriptionDeleted } from './database.js'
+import { sendConfirmEmail } from './mailgun.js'
 import { registerSubscription } from './worker.js'
 import { createStatusEvent } from './domain.js'
 
@@ -37,10 +38,6 @@ export class Connection {
 
   send(message: RelayMessage) {
     this._socket.send(JSON.stringify(message))
-
-    if (LOG_RELAY_MESSAGES) {
-      console.log('relay sent:', ...message)
-    }
   }
 
   handle(message: WebSocket.Data) {
@@ -50,10 +47,6 @@ export class Connection {
     } catch (e) {
       this.send(['NOTICE', '', 'Unable to parse message'])
       return
-    }
-
-    if (LOG_RELAY_MESSAGES) {
-      console.log('relay received:', ...parsedMessage)
     }
 
     let verb: string
@@ -173,7 +166,18 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Encrypted tags are not an array'])
     }
 
-    registerSubscription(await addSubscription(event, tags))
+    const email = getTagValue('email', tags)
+    const subscription = await addSubscription(event, tags)
+
+    if (email) {
+      const user = await getEmailUser(email)
+
+      if (!user) {
+        sendConfirmEmail(await addEmailUser({email}))
+      }
+    }
+
+    registerSubscription(subscription)
 
     this.send(['OK', event.id, true, ""])
   }

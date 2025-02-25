@@ -2,12 +2,14 @@ import {CronExpressionParser} from 'cron-parser'
 import {tryCatch, parseJson, isPojo, fromPairs, int, HOUR} from '@welshman/lib'
 import type {SignedEvent, Filter} from '@welshman/util'
 import {isShareableRelayUrl, getTags, getTagValues, createEvent, getTagValue} from '@welshman/util'
+import {getEmailUser} from './database.js'
 import {appSigner, NOTIFIER_STATUS} from './env.js'
 
 export type EmailUser = {
   email: string
   confirm_token: string
   access_token: string
+  confirmed_at?: number
 }
 
 export type Subscription = {
@@ -59,9 +61,7 @@ export const getSubscriptionParams = (subscription: Subscription): SubscriptionP
   }
 }
 
-export const getSubscriptionError = (subscription: Subscription) => {
-  const {channel, cron, relays, filters} = getSubscriptionParams(subscription)
-
+export const getSubscriptionError = async ({channel, cron, relays, filters, email}: SubscriptionParams) => {
   if (channel !== Channel.Email) return "Only email notifications are currently supported."
   if (!cron) return "Immediate notifications are not currently supported."
 
@@ -76,27 +76,41 @@ export const getSubscriptionError = (subscription: Subscription) => {
     total += dates[i] - dates[i - 1]
   }
 
-  if (total / (dates.length - 1) < int(1, HOUR)) return "Requested notification interval is too short"
+  // if (total / (dates.length - 1) < int(1, HOUR)) return "Requested notification interval is too short"
   if (relays.length === 0) return "At least one relay url is required"
   if (relays.some(url => !isShareableRelayUrl(url))) return "Request contained invalid relay urls"
   if (filters.length === 0) return "At least one filter is required"
   if (filters.some(filter => !isPojo(filter))) return "Request contained invalid filters"
+  if (!email?.includes('@')) return "Please provide a valid email address"
 }
 
 export const createStatusEvent = async (subscription: Subscription) => {
-  const error = getSubscriptionError(subscription)
+  const params = getSubscriptionParams(subscription)
+  const error = await getSubscriptionError(params)
+  const user = await getEmailUser(params.email!)
+
+  let status = "ok"
+  let message = "This subscription is active"
+
+  if (error) {
+    status = "error"
+    message = error
+  } else if (!user) {
+    status = "error"
+    message = "This subscription has been deactivated"
+  } else if (!user.confirmed_at) {
+    status = "pending"
+    message = "Please confirm your email address"
+  }
 
   return appSigner.sign(
     createEvent(NOTIFIER_STATUS, {
       content: await appSigner.nip44.encrypt(
         subscription.pubkey,
-        JSON.stringify([
-          ["status", error ? "error" : "ok"],
-          ["message", error || "This subscription is active"],
-        ])
+        JSON.stringify([["status", status], ["message", message]])
       ),
       tags: [
-        ["a", subscription.address],
+        ["d", subscription.address],
         ["p", subscription.pubkey],
       ],
     })
