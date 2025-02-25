@@ -1,5 +1,5 @@
 import {CronExpressionParser} from 'cron-parser'
-import {tryCatch, parseJson, isPojo, fromPairs, int, HOUR} from '@welshman/lib'
+import {tryCatch, parseJson, isPojo, fromPairs} from '@welshman/lib'
 import type {SignedEvent, Filter} from '@welshman/util'
 import {isShareableRelayUrl, getTags, getTagValues, createEvent, getTagValue} from '@welshman/util'
 import {getEmailUser} from './database.js'
@@ -84,30 +84,32 @@ export const getSubscriptionError = async ({channel, cron, relays, filters, emai
   if (!email?.includes('@')) return "Please provide a valid email address"
 }
 
-export const createStatusEvent = async (subscription: Subscription) => {
+export const getStatusTags = async (subscription: Subscription) => {
   const params = getSubscriptionParams(subscription)
   const error = await getSubscriptionError(params)
   const user = await getEmailUser(params.email!)
 
-  let status = "ok"
-  let message = "This subscription is active"
-
   if (error) {
-    status = "error"
-    message = error
-  } else if (!user) {
-    status = "error"
-    message = "This subscription has been deactivated"
-  } else if (!user.confirmed_at) {
-    status = "pending"
-    message = "Please confirm your email address"
+    return [["status", "error"], ["message", error]]
   }
 
-  return appSigner.sign(
+  if (!user) {
+    return [["status", "error"], ["message", "This subscription has been deactivated"]]
+  }
+
+  if (!user.confirmed_at) {
+    return [["status", "pending"], ["message", "Please confirm your email address"]]
+  }
+
+  return [["status", "ok"], ["message", "This subscription is active"]]
+}
+
+export const createStatusEvent = async (subscription: Subscription) =>
+  appSigner.sign(
     createEvent(NOTIFIER_STATUS, {
       content: await appSigner.nip44.encrypt(
         subscription.pubkey,
-        JSON.stringify([["status", status], ["message", message]])
+        JSON.stringify(await getStatusTags(subscription))
       ),
       tags: [
         ["d", subscription.address],
@@ -115,4 +117,3 @@ export const createStatusEvent = async (subscription: Subscription) => {
       ],
     })
   )
-}

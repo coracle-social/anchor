@@ -5,7 +5,7 @@ import {getIdFilters, getReplyFilters} from '@welshman/util'
 import {subscribe, SubscriptionEvent} from '@welshman/net'
 import type {SubscribeRequestWithHandlers} from '@welshman/net'
 import type {Subscription} from './domain.js'
-import {getSubscriptionError, getSubscriptionParams} from './domain.js'
+import {getSubscriptionParams} from './domain.js'
 import {getEmailUser} from './database.js'
 import {sendDigest} from './mailgun.js'
 
@@ -26,21 +26,17 @@ const createJob = (subscription: Subscription) => {
   const webHandlers = handlers.filter(nthEq(3, 'web'))
 
   const run = async () => {
-    if (!email) {
-      return console.log('skipping job with no email', subscription.address)
+    const statusTags = await getStatusTags(subscription)
+    const [status, message] = statusTags.map(nth(1))
+
+    if (status !== 'ok') {
+      return console.log('skipping job', subscription.address, status, message)
     }
-
-    const user = await getEmailUser(email)
-
-    if (!user?.confirmed_at) {
-      return console.log('skipping job with no confirmed user', subscription.address)
-    }
-
-    console.log('========', email, user)
-
-    const now = Date.now()
 
     console.log('running job', subscription.address)
+
+    const now = Date.now()
+    const user = await getEmailUser(email!)
 
     const [events, handlerEvents] = await Promise.all([
       load({relays, filters: filters.map(assoc('since', since))}),
@@ -73,10 +69,7 @@ const createJob = (subscription: Subscription) => {
 
 export const registerSubscription = (subscription: Subscription) => {
   jobsByAddress.get(subscription.address)?.stop()
-
-  if (!getSubscriptionError(getSubscriptionParams(subscription))) {
-    jobsByAddress.set(subscription.address, createJob(subscription))
-  }
+  jobsByAddress.set(subscription.address, createJob(subscription))
 }
 
 export const unregisterSubscription = (subscription: Subscription) => {

@@ -114,7 +114,7 @@ export class Connection {
     this.send(['EOSE', id])
   }
 
-  async onCLOSE(id: string) {
+  async onCLOSE() {
     // pass
   }
 
