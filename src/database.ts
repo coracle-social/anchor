@@ -1,9 +1,8 @@
 import sqlite3 from 'sqlite3'
 import crypto from 'crypto'
 import {instrument} from 'succinct-async'
-import { SignedEvent, getTagValues, getTagValue, getAddress } from '@welshman/util'
+import { SignedEvent, getTagValue, getAddress } from '@welshman/util'
 import type {Subscription} from './domain.js'
-import { NOTIFIER_SUBSCRIPTION } from './env.js'
 
 const db = new sqlite3.Database('anchor.db')
 

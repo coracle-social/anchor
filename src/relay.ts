@@ -7,7 +7,6 @@ import { DELETE, getAddress, matchFilters, getTagValue, getTagValues, hasValidSi
 import { appSigner, NOTIFIER_SUBSCRIPTION } from './env.js'
 import { getActiveSubscriptionsForPubkey, getSubscription } from './database.js'
 import { addSubscription, processDelete } from './actions.js'
-import { registerSubscription } from './worker.js'
 import { createStatusEvent } from './domain.js'
 
 type AuthState = {

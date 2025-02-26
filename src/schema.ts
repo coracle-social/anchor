@@ -44,13 +44,13 @@ export type TypeOptions = {
 
 export const registry = new Map<string, TypeOptions & {name: string}>()
 
-export function defineType<T>(name: string, options: TypeOptions) {
+export function defineType(name: string, options: TypeOptions) {
   registry.set(name, {name, ...options})
 
   return SchemaType.from(name)
 }
 
-export const ANY = defineType('any', {typeIsValid: (v: any) => true})
+export const ANY = defineType('any', {typeIsValid: (_: any) => true})
 
 export const NIL = defineType('nil', {typeIsValid: (v: any) => v === undefined})
 

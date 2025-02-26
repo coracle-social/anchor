@@ -97,7 +97,7 @@ server.ws('/', (socket: WebSocket, request: Request) => {
   socket.on('close', () => connection.cleanup())
 })
 
-server.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+server.use((err: Error, req: Request, res: Response) => {
   if (err instanceof ActionError) {
     return _err(res, 400, err.message)
   }
