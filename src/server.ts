@@ -7,7 +7,7 @@ import { appSigner } from './env.js'
 import { getError } from './schema.js'
 import { render } from './templates.js'
 import { Connection } from './relay.js'
-import { confirmSubscription, unsubscribeEmail, ActionError } from './actions.js'
+import { confirmSubscription, unsubscribe, ActionError } from './actions.js'
 
 // Utils
 
@@ -81,7 +81,7 @@ addRoute('get', '/confirm', async (req: Request, res: Response) => {
 
 addRoute('get', '/unsubscribe', async (req: Request, res: Response) => {
   try {
-    await unsubscribeEmail(req.query as any)
+    await unsubscribe(req.query as any)
   } catch (error) {
     // pass
   }

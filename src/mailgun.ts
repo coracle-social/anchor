@@ -2,7 +2,7 @@ import FormData from 'form-data'
 import Mailgun from 'mailgun.js'
 import {TrustedEvent} from '@welshman/util'
 import {MAILGUN_API_KEY, MAILGUN_DOMAIN, ANCHOR_NAME, ANCHOR_URL} from './env.js'
-import {EmailUser, Subscription} from './domain.js'
+import {Subscription} from './domain.js'
 import {render} from './templates.js'
 
 // @ts-expect-error Mailgun has no constructor signature
@@ -18,8 +18,8 @@ const send = (data: Record<string, any>) => {
   }
 }
 
-export const sendConfirmEmail = ({email}: EmailUser, {confirm_token}: Subscription) => {
-  const href = `${ANCHOR_URL}/confirm?email=${encodeURIComponent(email)}&confirm_token=${confirm_token}`
+export const sendConfirm = ({email, token}: Subscription) => {
+  const href = `${ANCHOR_URL}/confirm?email=${encodeURIComponent(email)}&token=${token}`
 
   return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
@@ -34,7 +34,7 @@ export const sendConfirmEmail = ({email}: EmailUser, {confirm_token}: Subscripti
   })
 }
 
-export const sendDigest = async ({email, access_token}: EmailUser, template: string, events: TrustedEvent[], context: TrustedEvent[]) => {
+export const sendDigest = async ({email, token}: Subscription, template: string, events: TrustedEvent[], context: TrustedEvent[]) => {
   return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
     to: email,
@@ -43,7 +43,7 @@ export const sendDigest = async ({email, access_token}: EmailUser, template: str
       name: email.split('@')[0],
       eventCount: events.length,
       events: events.map(e => ({content: e.content})),
-      unsubscribeUrl: `${ANCHOR_URL}/unsubscribe?email=${encodeURIComponent(email)}&access_token=${access_token}`
+      unsubscribeUrl: `${ANCHOR_URL}/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`
     }),
   })
 }

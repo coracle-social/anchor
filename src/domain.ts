@@ -2,22 +2,19 @@ import {CronExpressionParser} from 'cron-parser'
 import {tryCatch, parseJson, isPojo, fromPairs} from '@welshman/lib'
 import type {SignedEvent, Filter} from '@welshman/util'
 import {isShareableRelayUrl, getTags, getTagValues, createEvent, getTagValue} from '@welshman/util'
-import {getEmailUser} from './database.js'
 import {appSigner, NOTIFIER_STATUS} from './env.js'
-
-export type EmailUser = {
-  email: string
-  access_token: string
-}
 
 export type Subscription = {
   address: string
   pubkey: string
+  email: string
   event: SignedEvent
   tags: string[][]
-  confirm_token: string
-  confirmed_at?: number
+  token: string
+  created_at: number
   deleted_at?: number
+  confirmed_at?: number
+  unsubscribed_at?: number
 }
 
 export enum Channel {
@@ -88,18 +85,17 @@ export const getSubscriptionError = async ({channel, cron, relays, filters, emai
 export const getStatusTags = async (subscription: Subscription) => {
   const params = getSubscriptionParams(subscription)
   const error = await getSubscriptionError(params)
-  const user = await getEmailUser(params.email!)
 
   if (error) {
     return [["status", "error"], ["message", error]]
   }
 
-  if (!user) {
-    return [["status", "error"], ["message", "This subscription has been deactivated"]]
-  }
-
   if (!subscription.confirmed_at) {
     return [["status", "pending"], ["message", "Please confirm your subscription via email"]]
+  }
+
+  if (subscription.unsubscribed_at || subscription.deleted_at) {
+    return [["status", "error"], ["message", "This subscription has been deactivated"]]
   }
 
   return [["status", "ok"], ["message", "This subscription is active"]]

@@ -1,9 +1,8 @@
 import sqlite3 from 'sqlite3'
 import crypto from 'crypto'
 import {instrument} from 'succinct-async'
-import type { SignedEvent } from '@welshman/util'
-import { getTagValues, getAddress } from '@welshman/util'
-import type {Subscription, EmailUser} from './domain.js'
+import { SignedEvent, getTagValues, getTagValue, getAddress } from '@welshman/util'
+import type {Subscription} from './domain.js'
 import { NOTIFIER_SUBSCRIPTION } from './env.js'
 
 const db = new sqlite3.Database('anchor.db')
@@ -52,21 +51,17 @@ export const migrate = () =>
   new Promise<void>((resolve, reject) => {
     db.serialize(() => {
       db.run(`
-        CREATE TABLE IF NOT EXISTS email_users (
-          email TEXT PRIMARY KEY,
-          access_token TEXT
-        )
-      `)
-      db.run(`
         CREATE TABLE IF NOT EXISTS subscriptions (
           address TEXT PRIMARY KEY,
           pubkey TEXT NOT NULL,
+          email TEXT NOT NULL,
           event JSON NOT NULL,
           tags JSON NOT NULL,
+          token TEXT NOT NULL,
           created_at INTEGER NOT NULL,
+          deleted_at INTEGER,
           confirmed_at INTEGER,
-          confirm_token TEXT,
-          deleted_at INTEGER
+          unsubscribed_at INTEGER
         )
       `, (err) => {
         if (err) reject(err)
@@ -74,34 +69,6 @@ export const migrate = () =>
       })
     })
   })
-
-// Email address management
-
-export const insertEmailUser = instrument('database.insertEmailUser', (email: string) => {
-  return assertResult(
-    get<EmailUser>(
-      `INSERT INTO email_users (email, access_token) VALUES (?, ?)
-       ON CONFLICT (email) DO UPDATE SET email=excluded.email
-       RETURNING *`,
-      [email, crypto.randomBytes(32).toString('hex')],
-    )
-  )
-})
-
-export const authenticateEmailUser = instrument('database.authenticateEmailUser', (email: string, access_token: string) => {
-  return get<EmailUser>(
-    `SELECT * FROM email_users WHERE email = ? AND access_token = ?`,
-    [email, access_token]
-  )
-})
-
-export const deleteEmailUser = instrument('database.deleteEmailUser', (email: string) => {
-  return get<EmailUser>(`DELETE FROM email_users WHERE email = ? RETURNING *`, [email])
-})
-
-export const getEmailUser = instrument('database.getEmailUser', (email: string) => {
-  return get<EmailUser>(`SELECT * FROM email_users WHERE email = ?`, [email])
-})
 
 // Subscriptions
 
@@ -111,20 +78,22 @@ const parseSubscription = ({event, tags, ...subscription}: any): Subscription =>
 export async function insertSubscription(event: SignedEvent, tags: string[][]) {
   return parseSubscription(
     await get(
-      `INSERT INTO subscriptions (address, created_at, pubkey, event, tags, confirm_token)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO subscriptions (address, created_at, pubkey, email, event, tags, token)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(address) DO UPDATE SET
         deleted_at=null,
         created_at=excluded.created_at,
         pubkey=excluded.pubkey,
+        email=excluded.email,
         event=excluded.event,
         tags=excluded.tags,
-        confirm_token=excluded.confirm_token
+        token=excluded.token
        RETURNING *`,
       [
         getAddress(event),
         event.created_at,
         event.pubkey,
+        getTagValue('email', tags) || "",
         JSON.stringify(event),
         JSON.stringify(tags),
         crypto.randomBytes(32).toString('hex'),
@@ -133,12 +102,22 @@ export async function insertSubscription(event: SignedEvent, tags: string[][]) {
   )
 }
 
-export const confirmSubscription = instrument('database.confirmSubscription', (confirm_token: string) => {
+export const confirmSubscription = instrument('database.confirmSubscription', (token: string) => {
   return assertResult(
     get<Subscription>(
-      `UPDATE subscriptions SET confirmed_at = unixepoch(), confirm_token = null
-       WHERE confirm_token = ? AND confirmed_at IS NULL RETURNING *`,
-      [confirm_token],
+      `UPDATE subscriptions SET confirmed_at = unixepoch()
+       WHERE token = ? AND confirmed_at IS NULL RETURNING *`,
+      [token],
+    )
+  )
+})
+
+export const unsubscribeSubscription = instrument('database.unsubscribeSubscription', (token: string) => {
+  return assertResult(
+    get<Subscription>(
+      `UPDATE subscriptions SET unsubscribed_at = unixepoch()
+       WHERE token = ? AND unsubscribed_at IS NULL RETURNING *`,
+      [token],
     )
   )
 })

@@ -6,7 +6,6 @@ import {subscribe, SubscriptionEvent, getDefaultNetContext} from '@welshman/net'
 import type {SubscribeRequestWithHandlers} from '@welshman/net'
 import type {Subscription} from './domain.js'
 import {getSubscriptionParams, getStatusTags} from './domain.js'
-import {getEmailUser} from './database.js'
 import {sendDigest} from './mailgun.js'
 
 setContext({
@@ -41,7 +40,6 @@ const createJob = (subscription: Subscription) => {
       console.log('worker: job starting', subscription.address)
 
       const now = Date.now()
-      const user = await getEmailUser(email!)
 
       const [events, handlerEvents] = await Promise.all([
         load({relays, filters: filters.map(assoc('since', since))}),
@@ -56,7 +54,7 @@ const createJob = (subscription: Subscription) => {
         const handlerTemplates = handlerEvents.flatMap(e => e.tags.filter(nthEq(0, 'web')).map(nth(1)))
         const handlerTemplate = handlerTemplates[0] || 'https://coracle.social/'
 
-        await sendDigest(user!, handlerTemplate, events, context)
+        await sendDigest(subscription, handlerTemplate, events, context)
       }
 
       console.log('worker: job completed', subscription.address, 'in', Date.now() - now, 'ms')
