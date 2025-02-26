@@ -3,6 +3,7 @@ import addWebsockets, { Application } from 'express-ws'
 import rateLimit from 'express-rate-limit'
 import { WebSocket } from 'ws'
 import { appSigner } from './env.js'
+import { getError } from './schema.js'
 import { render } from './templates.js'
 import { Connection } from './relay.js'
 import { confirmEmailUser, authenticateEmailUser, removeEmailUser } from './database.js'
@@ -47,9 +48,13 @@ server.get('/unsubscribe', async (req: Request, res: Response) => {
 })
 
 server.post('/email/confirm', async (req: Request, res: Response) => {
-  const {email, confirm_token} = req.body
+  const error = getError({email: 'str', confirm_token: 'str'}, req.body)
 
-  const confirmed = await confirmEmailUser({email, confirm_token})
+  if (error) {
+    return _err(res, 400, error.message)
+  }
+
+  const confirmed = await confirmEmailUser(req.body)
 
   if (confirmed) {
     _ok(res)
@@ -59,12 +64,16 @@ server.post('/email/confirm', async (req: Request, res: Response) => {
 })
 
 server.post('/email/unsubscribe', async (req: Request, res: Response) => {
-  const {email, access_token} = req.body
+  const error = getError({email: 'str', access_token: 'str'}, req.body)
 
-  const authenticated = await authenticateEmailUser({email, access_token})
+  if (error) {
+    return _err(res, 400, error.message)
+  }
+
+  const authenticated = await authenticateEmailUser(req.body)
 
   if (authenticated) {
-    await removeEmailUser({email})
+    await removeEmailUser(req.body)
     _ok(res)
   } else {
     _err(res, 401, "Invalid access token")

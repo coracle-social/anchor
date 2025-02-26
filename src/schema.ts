@@ -139,7 +139,7 @@ const getType = (data: any) => {
 
 // Normalize
 
-export type RawSchema<T = any> = Schema | SchemaType | T[] | Record<string, T>
+export type RawSchema<T = any> = string | Schema | SchemaType | T[] | Record<string, T>
 
 export function normalize(schema: RawSchema): Schema {
   // If it's just a type keyword turn it into an object
@@ -147,6 +147,9 @@ export function normalize(schema: RawSchema): Schema {
 
   // If it's a schema we're good
   if ((schema as Schema).t instanceof SchemaType) return schema as Schema
+
+  // If we have a string, check the registry
+  if (registry.has(schema as string)) return {t: SchemaType.from(schema as string)}
 
   // Arrays are a special case
   if (Array.isArray(schema) && schema.length === 1) {
