@@ -7,9 +7,7 @@ import {appSigner, NOTIFIER_STATUS} from './env.js'
 
 export type EmailUser = {
   email: string
-  confirm_token: string
   access_token: string
-  confirmed_at?: number
 }
 
 export type Subscription = {
@@ -17,6 +15,9 @@ export type Subscription = {
   pubkey: string
   event: SignedEvent
   tags: string[][]
+  confirm_token: string
+  confirmed_at?: number
+  deleted_at?: number
 }
 
 export enum Channel {
@@ -97,8 +98,8 @@ export const getStatusTags = async (subscription: Subscription) => {
     return [["status", "error"], ["message", "This subscription has been deactivated"]]
   }
 
-  if (!user.confirmed_at) {
-    return [["status", "pending"], ["message", "Please confirm your email address"]]
+  if (!subscription.confirmed_at) {
+    return [["status", "pending"], ["message", "Please confirm your subscription via email"]]
   }
 
   return [["status", "ok"], ["message", "This subscription is active"]]

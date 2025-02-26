@@ -1,11 +1,12 @@
 import { WebSocket } from 'ws'
 import { Request } from 'express'
 import { decrypt } from '@welshman/signer'
-import { parseJson, pluck, ago, MINUTE, randomId } from '@welshman/lib'
+import { parseJson, gt, pluck, ago, MINUTE, randomId } from '@welshman/lib'
 import type { SignedEvent, Filter } from '@welshman/util'
-import { DELETE, matchFilters, getTagValue, getTagValues, hasValidSignature } from '@welshman/util'
+import { DELETE, getAddress, matchFilters, getTagValue, getTagValues, hasValidSignature } from '@welshman/util'
 import { appSigner, NOTIFIER_SUBSCRIPTION } from './env.js'
-import { addDelete, addSubscription, addEmailUser, getEmailUser, getSubscriptionsForPubkey, isSubscriptionDeleted } from './database.js'
+import { getEmailUser, getSubscriptionsForPubkey, getSubscription } from './database.js'
+import { addSubscription, processDelete } from './actions.js'
 import { sendConfirmEmail } from './mailgun.js'
 import { registerSubscription } from './worker.js'
 import { createStatusEvent } from './domain.js'
@@ -138,7 +139,8 @@ export class Connection {
   }
 
   private async handleDelete(event: SignedEvent) {
-    await addDelete(event)
+    await processDelete({event})
+
     this.send(['OK', event.id, true, ""])
   }
 
@@ -149,7 +151,9 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Event must p-tag this relay'])
     }
 
-    if (await isSubscriptionDeleted(event)) {
+    const subscription = await getSubscription(getAddress(event))
+
+    if (gt(subscription?.deleted_at, event.created_at)) {
       return this.send(['OK', event.id, false, 'Subscription has been deleted'])
     }
 
@@ -166,18 +170,7 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Encrypted tags are not an array'])
     }
 
-    const email = getTagValue('email', tags)
-    const subscription = await addSubscription(event, tags)
-
-    if (email) {
-      const user = await getEmailUser(email)
-
-      if (!user) {
-        sendConfirmEmail(await addEmailUser({email}))
-      }
-    }
-
-    registerSubscription(subscription)
+    await addSubscription({event, tags})
 
     this.send(['OK', event.id, true, ""])
   }

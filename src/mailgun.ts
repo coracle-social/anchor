@@ -2,7 +2,7 @@ import FormData from 'form-data'
 import Mailgun from 'mailgun.js'
 import {TrustedEvent} from '@welshman/util'
 import {MAILGUN_API_KEY, MAILGUN_DOMAIN, ANCHOR_NAME, ANCHOR_URL} from './env.js'
-import type {EmailUser} from './domain.js'
+import {EmailUser, Subscription} from './domain.js'
 import {render} from './templates.js'
 
 // @ts-expect-error Mailgun has no constructor signature
@@ -18,12 +18,12 @@ const send = (data: Record<string, any>) => {
   }
 }
 
-export const sendConfirmEmail = (user: EmailUser) => {
-  const href = `${ANCHOR_URL}/confirm?email=${encodeURIComponent(user.email)}&confirm_token=${user.confirm_token}`
+export const sendConfirmEmail = ({email}: EmailUser, {confirm_token}: Subscription) => {
+  const href = `${ANCHOR_URL}/confirm?email=${encodeURIComponent(email)}&confirm_token=${confirm_token}`
 
   return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
-    to: user.email,
+    to: email,
     subject: 'Confirm your email',
     html: `
       <h3>Welcome to ${ANCHOR_NAME}!</h3>
@@ -34,16 +34,16 @@ export const sendConfirmEmail = (user: EmailUser) => {
   })
 }
 
-export const sendDigest = async (user: EmailUser, template: string, events: TrustedEvent[], context: TrustedEvent[]) => {
+export const sendDigest = async ({email, access_token}: EmailUser, template: string, events: TrustedEvent[], context: TrustedEvent[]) => {
   return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
-    to: user.email,
+    to: email,
     subject: 'New activity',
     html: await render('emails/digest.html', {
-      name: user.email.split('@')[0],
+      name: email.split('@')[0],
       eventCount: events.length,
       events: events.map(e => ({content: e.content})),
-      unsubscribeUrl: `${ANCHOR_URL}/unsubscribe?email=${encodeURIComponent(user.email)}&access_token=${user.access_token}`
+      unsubscribeUrl: `${ANCHOR_URL}/unsubscribe?email=${encodeURIComponent(email)}&access_token=${access_token}`
     }),
   })
 }

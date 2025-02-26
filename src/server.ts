@@ -6,7 +6,7 @@ import { appSigner } from './env.js'
 import { getError } from './schema.js'
 import { render } from './templates.js'
 import { Connection } from './relay.js'
-import { confirmEmailUser, authenticateEmailUser, removeEmailUser } from './database.js'
+import { confirmEmail, unsubscribeEmail } from './actions.js'
 
 // Utils
 
@@ -54,13 +54,9 @@ server.post('/email/confirm', async (req: Request, res: Response) => {
     return _err(res, 400, error.message)
   }
 
-  const confirmed = await confirmEmailUser(req.body)
+  const confirmed = await confirmEmail(req.body)
 
-  if (confirmed) {
-    _ok(res)
-  } else {
-    _err(res, 400, "It looks like that confirmation code is invalid or has expired.")
-  }
+  _ok(res)
 })
 
 server.post('/email/unsubscribe', async (req: Request, res: Response) => {
@@ -70,14 +66,9 @@ server.post('/email/unsubscribe', async (req: Request, res: Response) => {
     return _err(res, 400, error.message)
   }
 
-  const authenticated = await authenticateEmailUser(req.body)
+  await unsubscribeEmail(req.body)
 
-  if (authenticated) {
-    await removeEmailUser(req.body)
-    _ok(res)
-  } else {
-    _err(res, 401, "Invalid access token")
-  }
+  _ok(res)
 })
 
 server.ws('/', (socket: WebSocket, request: Request) => {
