@@ -1,5 +1,5 @@
 export class SchemaType {
-  constructor (readonly name: string) {}
+  constructor(readonly name: string) {}
 
   static from(name: string) {
     return new SchemaType(name)
@@ -42,34 +42,36 @@ export type TypeOptions = {
   iterTypeErrors?: (schema: Schema, data: any, path: string[]) => Iterable<SchemaError>
 }
 
-export const registry = new Map<string, TypeOptions & {name: string}>()
+export const registry = new Map<string, TypeOptions & { name: string }>()
 
 export function defineType(name: string, options: TypeOptions) {
-  registry.set(name, {name, ...options})
+  registry.set(name, { name, ...options })
 
   return SchemaType.from(name)
 }
 
-export const ANY = defineType('any', {typeIsValid: (_: any) => true})
+export const ANY = defineType('any', { typeIsValid: (_: any) => true })
 
-export const NIL = defineType('nil', {typeIsValid: (v: any) => v === undefined})
+export const NIL = defineType('nil', { typeIsValid: (v: any) => v === undefined })
 
-export const INT = defineType('int', {typeIsValid: (v: any) => typeof v === 'number' && Math.round(v) === v})
+export const INT = defineType('int', {
+  typeIsValid: (v: any) => typeof v === 'number' && Math.round(v) === v,
+})
 
-export const NUM = defineType('num', {typeIsValid: (v: any) => typeof v === 'number'})
+export const NUM = defineType('num', { typeIsValid: (v: any) => typeof v === 'number' })
 
-export const STR = defineType('str', {typeIsValid: (v: any) => typeof v === 'string'})
+export const STR = defineType('str', { typeIsValid: (v: any) => typeof v === 'string' })
 
-export const BOOL = defineType('bool', {typeIsValid: (v: any) => typeof v === 'boolean'})
+export const BOOL = defineType('bool', { typeIsValid: (v: any) => typeof v === 'boolean' })
 
-export const TRUE = defineType('true', {typeIsValid: (v: any) => v === true})
+export const TRUE = defineType('true', { typeIsValid: (v: any) => v === true })
 
-export const FALSE = defineType('false', {typeIsValid: (v: any) => v === false})
+export const FALSE = defineType('false', { typeIsValid: (v: any) => v === false })
 
 export const LIST = defineType('list', {
   typeIsValid: (v: any) => Array.isArray(v),
   iterChildTuples: function* (schema: Schema, data: any[]) {
-    const childSchema = schema.items || {t: ANY}
+    const childSchema = schema.items || { t: ANY }
 
     for (let i = 0; i < data.length; i++) {
       yield [childSchema, data[i], String(i)]
@@ -127,11 +129,16 @@ const getType = (data: any) => {
   if (Array.isArray(data)) return 'list'
 
   switch (typeof data) {
-    case 'undefined': return 'nil'
-    case 'number': return Math.round(data) === data ? 'int' : 'num'
-    case 'string': return 'str'
-    case 'boolean': return 'bool'
-    case 'object': return 'map'
+    case 'undefined':
+      return 'nil'
+    case 'number':
+      return Math.round(data) === data ? 'int' : 'num'
+    case 'string':
+      return 'str'
+    case 'boolean':
+      return 'bool'
+    case 'object':
+      return 'map'
   }
 
   return typeof data
@@ -143,17 +150,17 @@ export type RawSchema<T = any> = string | Schema | SchemaType | T[] | Record<str
 
 export function normalize(schema: RawSchema): Schema {
   // If it's just a type keyword turn it into an object
-  if (schema instanceof SchemaType) return {t: schema}
+  if (schema instanceof SchemaType) return { t: schema }
 
   // If it's a schema we're good
   if ((schema as Schema).t instanceof SchemaType) return schema as Schema
 
   // If we have a string, check the registry
-  if (registry.has(schema as string)) return {t: SchemaType.from(schema as string)}
+  if (registry.has(schema as string)) return { t: SchemaType.from(schema as string) }
 
   // Arrays are a special case
   if (Array.isArray(schema) && schema.length === 1) {
-    return {t: LIST, items: normalize(schema[0])}
+    return { t: LIST, items: normalize(schema[0]) }
   }
 
   // Objects are a special case
@@ -164,7 +171,7 @@ export function normalize(schema: RawSchema): Schema {
       properties[k] = normalize(v)
     }
 
-    return {t: MAP, properties}
+    return { t: MAP, properties }
   }
 
   throw new Error(`Invalid schema: ${summarize(schema)}`)
@@ -172,7 +179,11 @@ export function normalize(schema: RawSchema): Schema {
 
 // Data validation utils
 
-export function* iterErrors(rawSchema: RawSchema, data: any, path: string[] = []): Iterable<SchemaError> {
+export function* iterErrors(
+  rawSchema: RawSchema,
+  data: any,
+  path: string[] = []
+): Iterable<SchemaError> {
   const schema = normalize(rawSchema)
   const typedef = registry.get(schema.t.toString())
 
@@ -190,7 +201,7 @@ export function* iterErrors(rawSchema: RawSchema, data: any, path: string[] = []
     }
   }
 
-  if (schema.enum && !schema.enum.some(x => x === data)) {
+  if (schema.enum && !schema.enum.some((x) => x === data)) {
     yield {
       path,
       code: SchemaErrorCode.Enum,
@@ -206,7 +217,7 @@ export function* iterErrors(rawSchema: RawSchema, data: any, path: string[] = []
 
   if (typedef.iterChildTuples) {
     for (const [childSchema, child, k] of typedef.iterChildTuples(schema, data)) {
-      yield *iterErrors(childSchema, child, [...path, k])
+      yield* iterErrors(childSchema, child, [...path, k])
     }
   }
 }

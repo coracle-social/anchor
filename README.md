@@ -33,4 +33,4 @@ echo $status
 
 # TODO
 
-- [ ] Unsubscribe link
+- [ ] Serve deletes

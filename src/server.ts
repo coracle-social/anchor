@@ -1,4 +1,4 @@
-import {instrument} from 'succinct-async'
+import { instrument } from 'succinct-async'
 import express, { Request, Response, NextFunction } from 'express'
 import addWebsockets, { Application } from 'express-ws'
 import rateLimit from 'express-rate-limit'
@@ -12,11 +12,11 @@ import { confirmSubscription, unsubscribe, ActionError } from './actions.js'
 // Utils
 
 const _err = (res: Response, status: number, error: string) => {
-  res.status(status).send({error})
+  res.status(status).send({ error })
 }
 
 const _ok = (res: Response, status = 200) => {
-  res.status(status).send({ok: true})
+  res.status(status).send({ ok: true })
 }
 
 // Endpoints
@@ -27,45 +27,44 @@ addWebsockets(server)
 
 server.use(express.json())
 
-server.use(rateLimit({limit: 30, windowMs: 5 * 60 * 1000}))
+server.use(rateLimit({ limit: 30, windowMs: 5 * 60 * 1000 }))
 
 type Handler = (req: Request, res: Response, next?: NextFunction) => Promise<any>
 
-const addRoute = (method: "get" | "post", path: string, handler: Handler) => {
+const addRoute = (method: 'get' | 'post', path: string, handler: Handler) => {
   server[method](
     path,
-    instrument(
-      path,
-      async (req: Request, res: Response, next: NextFunction) => {
-        try {
-          await handler(req, res, next)
-        } catch (e) {
-          next(e)
-        }
+    instrument(path, async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await handler(req, res, next)
+      } catch (e) {
+        next(e)
       }
-    )
+    })
   )
 }
 
-addRoute("get", '/', async (_req: Request, res: Response) => {
-  res.set({'Content-Type': 'application/nostr+json; charset=utf-8'})
+addRoute('get', '/', async (_req: Request, res: Response) => {
+  res.set({ 'Content-Type': 'application/nostr+json; charset=utf-8' })
 
   res.json({
-    name: "Anchor",
-    icon: "https://pfp.nostr.build/2644089e06a950889fa4aa81f6152a51fba23497735cbba351aa6972460df6f5.jpg",
-    description: "A relay/notifier combo for email notifications",
+    name: 'Anchor',
+    icon: 'https://pfp.nostr.build/2644089e06a950889fa4aa81f6152a51fba23497735cbba351aa6972460df6f5.jpg',
+    description: 'A relay/notifier combo for email notifications',
     pubkey: await appSigner.getPubkey(),
-    software: "https://github.com/coracle-social/anchor",
+    software: 'https://github.com/coracle-social/anchor',
   })
 })
 
 addRoute('get', '/confirm', async (req: Request, res: Response) => {
-  const error = getError({confirm_token: 'str'}, req.query)
+  const error = getError({ confirm_token: 'str' }, req.query)
 
   if (error) {
-    return res.send(await render('pages/confirm-error.html', {
-      message: "No confirmation token was provided.",
-    }))
+    return res.send(
+      await render('pages/confirm-error.html', {
+        message: 'No confirmation token was provided.',
+      })
+    )
   }
 
   try {
@@ -73,9 +72,11 @@ addRoute('get', '/confirm', async (req: Request, res: Response) => {
 
     res.send(await render('pages/confirm-success.html'))
   } catch (error) {
-    return res.send(await render('pages/confirm-error.html', {
-      message: String(error),
-    }))
+    return res.send(
+      await render('pages/confirm-error.html', {
+        message: String(error),
+      })
+    )
   }
 })
 
@@ -92,7 +93,7 @@ addRoute('get', '/unsubscribe', async (req: Request, res: Response) => {
 server.ws('/', (socket: WebSocket, request: Request) => {
   const connection = new Connection(socket, request)
 
-  socket.on('message', msg => connection.handle(msg))
+  socket.on('message', (msg) => connection.handle(msg))
   socket.on('error', () => connection.cleanup())
   socket.on('close', () => connection.cleanup())
 })

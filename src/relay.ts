@@ -3,7 +3,14 @@ import { Request } from 'express'
 import { decrypt } from '@welshman/signer'
 import { parseJson, gt, pluck, ago, MINUTE, randomId } from '@welshman/lib'
 import type { SignedEvent, Filter } from '@welshman/util'
-import { DELETE, getAddress, matchFilters, getTagValue, getTagValues, hasValidSignature } from '@welshman/util'
+import {
+  DELETE,
+  getAddress,
+  matchFilters,
+  getTagValue,
+  getTagValues,
+  hasValidSignature,
+} from '@welshman/util'
 import { appSigner, NOTIFIER_SUBSCRIPTION } from './env.js'
 import { getActiveSubscriptionsForPubkey, getSubscription } from './database.js'
 import { addSubscription, processDelete } from './actions.js'
@@ -51,15 +58,15 @@ export class Connection {
     let verb: string
     let payload: any[]
     try {
-      [verb, ...payload] = parsedMessage
+      ;[verb, ...payload] = parsedMessage
     } catch (e) {
       this.send(['NOTICE', '', 'Unable to read message'])
       return
     }
 
-    const handler = this[`on${verb}` as keyof Connection] as ((
-      ...args: any[]
-    ) => Promise<void>) | undefined
+    const handler = this[`on${verb}` as keyof Connection] as
+      | ((...args: any[]) => Promise<void>)
+      | undefined
 
     if (handler) {
       handler.call(this, ...payload)
@@ -70,28 +77,28 @@ export class Connection {
 
   async onAUTH(event: SignedEvent) {
     if (!hasValidSignature(event)) {
-      return this.send(['OK', event.id, false, "invalid signature"])
+      return this.send(['OK', event.id, false, 'invalid signature'])
     }
 
     if (event.kind !== 22242) {
-      return this.send(['OK', event.id, false, "invalid kind"])
+      return this.send(['OK', event.id, false, 'invalid kind'])
     }
 
     if (event.created_at < ago(5, MINUTE)) {
-      return this.send(['OK', event.id, false, "created_at is too far from current time"])
+      return this.send(['OK', event.id, false, 'created_at is too far from current time'])
     }
 
     if (getTagValue('challenge', event.tags) !== this.auth.challenge) {
-      return this.send(['OK', event.id, false, "invalid challenge"])
+      return this.send(['OK', event.id, false, 'invalid challenge'])
     }
 
-    if (!getTagValue('relay', event.tags)?.includes(this._request.get('host') || "")) {
-      return this.send(['OK', event.id, false, "invalid relay"])
+    if (!getTagValue('relay', event.tags)?.includes(this._request.get('host') || '')) {
+      return this.send(['OK', event.id, false, 'invalid relay'])
     }
 
     this.auth.event = event
 
-    this.send(['OK', event.id, true, ""])
+    this.send(['OK', event.id, true, ''])
   }
 
   async onREQ(id: string, ...filters: Filter[]) {
@@ -137,9 +144,9 @@ export class Connection {
   }
 
   private async handleDelete(event: SignedEvent) {
-    await processDelete({event})
+    await processDelete({ event })
 
-    this.send(['OK', event.id, true, ""])
+    this.send(['OK', event.id, true, ''])
   }
 
   private async handleNotifierSubscription(event: SignedEvent) {
@@ -168,8 +175,8 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Encrypted tags are not an array'])
     }
 
-    await addSubscription({event, tags})
+    await addSubscription({ event, tags })
 
-    this.send(['OK', event.id, true, ""])
+    this.send(['OK', event.id, true, ''])
   }
 }

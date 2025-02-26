@@ -1,12 +1,12 @@
-import {CronJob} from 'cron'
-import {nth, assoc, nthEq, setContext} from '@welshman/lib'
-import type {TrustedEvent} from '@welshman/util'
-import {getIdFilters, getReplyFilters} from '@welshman/util'
-import {subscribe, SubscriptionEvent, getDefaultNetContext} from '@welshman/net'
-import type {SubscribeRequestWithHandlers} from '@welshman/net'
-import type {Subscription} from './domain.js'
-import {getSubscriptionParams, getStatusTags} from './domain.js'
-import {sendDigest} from './mailgun.js'
+import { CronJob } from 'cron'
+import { nth, assoc, nthEq, setContext } from '@welshman/lib'
+import type { TrustedEvent } from '@welshman/util'
+import { getIdFilters, getReplyFilters } from '@welshman/util'
+import { subscribe, SubscriptionEvent, getDefaultNetContext } from '@welshman/net'
+import type { SubscribeRequestWithHandlers } from '@welshman/net'
+import type { Subscription } from './domain.js'
+import { getSubscriptionParams, getStatusTags } from './domain.js'
+import { sendDigest } from './mailgun.js'
 
 setContext({
   net: getDefaultNetContext() as any,
@@ -15,8 +15,8 @@ setContext({
 const jobsByAddress = new Map()
 
 export const load = (request: SubscribeRequestWithHandlers) =>
-  new Promise<TrustedEvent[]>(resolve => {
-    const sub = subscribe({closeOnEose: true, timeout: 10_000, ...request})
+  new Promise<TrustedEvent[]>((resolve) => {
+    const sub = subscribe({ closeOnEose: true, timeout: 10_000, ...request })
     const events: TrustedEvent[] = []
 
     sub.on(SubscriptionEvent.Event, (url: string, e: TrustedEvent) => events.push(e))
@@ -24,7 +24,7 @@ export const load = (request: SubscribeRequestWithHandlers) =>
   })
 
 const createJob = (subscription: Subscription) => {
-  const {cron, relays, filters, handlers, pause_until} = getSubscriptionParams(subscription)
+  const { cron, relays, filters, handlers, pause_until } = getSubscriptionParams(subscription)
   const since = Math.max(pause_until || 0, subscription.event.created_at)
   const webHandlers = handlers.filter(nthEq(3, 'web'))
 
@@ -42,7 +42,7 @@ const createJob = (subscription: Subscription) => {
       const now = Date.now()
 
       const [events, handlerEvents] = await Promise.all([
-        load({relays, filters: filters.map(assoc('since', since))}),
+        load({ relays, filters: filters.map(assoc('since', since)) }),
         load({
           relays: webHandlers.map(nth(2)),
           filters: getIdFilters(webHandlers.map(nth(1))),
@@ -50,8 +50,10 @@ const createJob = (subscription: Subscription) => {
       ])
 
       if (events.length > 0) {
-        const context = await load({relays, filters: getReplyFilters(events)})
-        const handlerTemplates = handlerEvents.flatMap(e => e.tags.filter(nthEq(0, 'web')).map(nth(1)))
+        const context = await load({ relays, filters: getReplyFilters(events) })
+        const handlerTemplates = handlerEvents.flatMap((e) =>
+          e.tags.filter(nthEq(0, 'web')).map(nth(1))
+        )
         const handlerTemplate = handlerTemplates[0] || 'https://coracle.social/'
 
         await sendDigest(subscription, handlerTemplate, events, context)
@@ -85,4 +87,3 @@ export const unregisterSubscription = (subscription: Subscription) => {
 
   console.log('unregistered job', subscription.address)
 }
-
