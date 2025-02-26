@@ -42,7 +42,7 @@ const exists = (query: string, params: Param[] = []) =>
     db.all(query, params, (err, rows) => (err ? reject(err) : resolve(rows.length > 0)))
   })
 
-async function assertResult<T>(p: Promise<T>) {
+async function assertResult<T>(p: T | Promise<T>) {
   return (await p)!
 }
 
@@ -76,42 +76,43 @@ export const migrate = () =>
 
 // Subscriptions
 
-const parseSubscription = ({ event, tags, ...subscription }: any): Subscription => ({
-  ...subscription,
-  event: JSON.parse(event),
-  tags: JSON.parse(tags),
-})
+const parseSubscription = (row: any): Subscription | undefined => {
+  if (row) {
+    return {...row, event: JSON.parse(row.event), tags: JSON.parse(row.tags)}
+  }
+}
 
 export async function insertSubscription(event: SignedEvent, tags: string[][]) {
-  return parseSubscription(
-    await get(
-      `INSERT INTO subscriptions (address, created_at, pubkey, email, event, tags, token)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(address) DO UPDATE SET
-        deleted_at=null,
-        created_at=excluded.created_at,
-        pubkey=excluded.pubkey,
-        email=excluded.email,
-        event=excluded.event,
-        tags=excluded.tags,
-        token=excluded.token
-       RETURNING *`,
-      [
-        getAddress(event),
-        event.created_at,
-        event.pubkey,
-        getTagValue('email', tags) || '',
-        JSON.stringify(event),
-        JSON.stringify(tags),
-        crypto.randomBytes(32).toString('hex'),
-      ]
+  return assertResult(
+    parseSubscription(
+      await get(
+        `INSERT INTO subscriptions (address, created_at, pubkey, email, event, tags, token)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(address) DO UPDATE SET
+          created_at=excluded.created_at,
+          pubkey=excluded.pubkey,
+          email=excluded.email,
+          event=excluded.event,
+          tags=excluded.tags,
+          token=excluded.token
+         RETURNING *`,
+        [
+          getAddress(event),
+          event.created_at,
+          event.pubkey,
+          getTagValue('email', tags) || '',
+          JSON.stringify(event),
+          JSON.stringify(tags),
+          crypto.randomBytes(32).toString('hex'),
+        ]
+      )
     )
   )
 }
 
-export const confirmSubscription = instrument('database.confirmSubscription', (token: string) => {
-  return assertResult(
-    get<Subscription>(
+export const confirmSubscription = instrument('database.confirmSubscription', async (token: string) => {
+  return parseSubscription(
+    await get<Subscription>(
       `UPDATE subscriptions SET confirmed_at = unixepoch()
        WHERE token = ? AND confirmed_at IS NULL RETURNING *`,
       [token]
@@ -121,11 +122,10 @@ export const confirmSubscription = instrument('database.confirmSubscription', (t
 
 export const unsubscribeSubscription = instrument(
   'database.unsubscribeSubscription',
-  (token: string) => {
-    return assertResult(
-      get<Subscription>(
-        `UPDATE subscriptions SET unsubscribed_at = unixepoch()
-       WHERE token = ? AND unsubscribed_at IS NULL RETURNING *`,
+  async (token: string) => {
+    return parseSubscription(
+      await get<Subscription>(
+        `UPDATE subscriptions SET unsubscribed_at = unixepoch() WHERE token = ? RETURNING *`,
         [token]
       )
     )
@@ -135,43 +135,36 @@ export const unsubscribeSubscription = instrument(
 export const deleteSubscription = instrument(
   'database.deleteSubscription',
   async (address: string, deleted_at: number) => {
-    const row = await get(
-      `UPDATE subscriptions SET deleted_at = ?, confirmed_at = ?
-     WHERE address = ? AND created_at < ? RETURNING *`,
-      [address, address, deleted_at, deleted_at]
+    return parseSubscription(
+      await get(
+        `UPDATE subscriptions SET deleted_at = ? WHERE address = ? RETURNING *`,
+        [deleted_at, address]
+      )
     )
-
-    if (row) {
-      return parseSubscription(row)
-    }
   }
 )
 
-export const getActiveSubscriptions = instrument('database.getAllSubscriptions', async () => {
+export const getActiveSubscriptions = instrument('database.getActiveSubscriptions', async () => {
   const rows = await all(
-    `SELECT * FROM subscriptions WHERE coalesce(deleted_at, 0) < coalesce(confirmed_at, 0)`
+    `SELECT * FROM subscriptions
+     WHERE coalesce(deleted_at, 0) < coalesce(confirmed_at, 0)
+       AND coalesce(unsubscribed_at, 0) < coalesce(confirmed_at, 0)`
   )
 
-  return rows.map(parseSubscription)
+  return rows.map(parseSubscription) as Subscription[]
 })
 
 export const getSubscription = instrument('database.getSubscription', async (address: string) => {
-  const row = await get(`SELECT * FROM subscriptions WHERE address = ?`, [address])
-
-  if (row) {
-    return parseSubscription(row)
-  }
+  return parseSubscription(
+    await get(`SELECT * FROM subscriptions WHERE address = ?`, [address])
+  )
 })
 
-export const getActiveSubscriptionsForPubkey = instrument(
+export const getSubscriptionsForPubkey = instrument(
   'database.getSubscriptionsForPubkey',
   async (pubkey: string) => {
-    const rows = await all(
-      `SELECT * FROM subscriptions
-     WHERE pubkey = ? AND coalesce(deleted_at, 0) < coalesce(confirmed_at, 0)`,
-      [pubkey]
-    )
+    const rows = await all(`SELECT * FROM subscriptions WHERE pubkey = ?`, [pubkey])
 
-    return rows.map(parseSubscription)
+    return rows.map(parseSubscription) as Subscription[]
   }
 )

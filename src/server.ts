@@ -29,14 +29,14 @@ server.use(express.json())
 
 server.use(rateLimit({ limit: 30, windowMs: 5 * 60 * 1000 }))
 
-type Handler = (req: Request, res: Response, next?: NextFunction) => Promise<any>
+type Handler = (req: Request, res: Response) => Promise<any>
 
 const addRoute = (method: 'get' | 'post', path: string, handler: Handler) => {
   server[method](
     path,
     instrument(path, async (req: Request, res: Response, next: NextFunction) => {
       try {
-        await handler(req, res, next)
+        await handler(req, res)
       } catch (e) {
         next(e)
       }
@@ -57,7 +57,7 @@ addRoute('get', '/', async (_req: Request, res: Response) => {
 })
 
 addRoute('get', '/confirm', async (req: Request, res: Response) => {
-  const error = getError({ confirm_token: 'str' }, req.query)
+  const error = getError({ token: 'str' }, req.query)
 
   if (error) {
     return res.send(
@@ -72,11 +72,14 @@ addRoute('get', '/confirm', async (req: Request, res: Response) => {
 
     res.send(await render('pages/confirm-success.html'))
   } catch (error) {
-    return res.send(
-      await render('pages/confirm-error.html', {
-        message: String(error),
-      })
-    )
+    const isActionError = error instanceof ActionError
+    const message = isActionError ? String(error) : "Oops, something went wrong on our end!"
+
+    res.send(await render('pages/confirm-error.html', {message}))
+
+    if (!isActionError) {
+      throw error
+    }
   }
 })
 

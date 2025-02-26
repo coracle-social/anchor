@@ -47,10 +47,10 @@ const database_js_1 = require("../src/database.js");
     (0, node_test_1.describe)('POST /email/confirm', () => {
         (0, node_test_1.it)('confirms valid email token', () => __awaiter(void 0, void 0, void 0, function* () {
             const email = 'test@example.com';
-            const confirm_token = yield (0, database_js_1.addEmail)({ email });
+            const token = yield (0, database_js_1.addEmail)({ email });
             const response = yield (0, supertest_1.default)(server_js_1.server)
                 .post('/email/confirm')
-                .send({ email, confirm_token })
+                .send({ email, token })
                 .expect(200);
             strict_1.default.equal(response.body.ok, true);
         }));
@@ -59,7 +59,7 @@ const database_js_1 = require("../src/database.js");
                 .post('/email/confirm')
                 .send({
                 email: 'test@example.com',
-                confirm_token: 'invalid'
+                token: 'invalid'
             })
                 .expect(400);
             strict_1.default.equal(response.body.error, 'It looks like that confirmation code is invalid or has expired.');
@@ -68,11 +68,11 @@ const database_js_1 = require("../src/database.js");
     (0, node_test_1.describe)('POST /email/unsubscribe', () => {
         (0, node_test_1.it)('removes email with valid token', () => __awaiter(void 0, void 0, void 0, function* () {
             const email = 'test@example.com';
-            const confirm_token = yield (0, database_js_1.addEmail)({ email });
-            const { access_token } = yield (0, database_js_1.get)('SELECT access_token FROM emails WHERE email = ?', [email]);
+            const token = yield (0, database_js_1.addEmail)({ email });
+            const { token } = yield (0, database_js_1.get)('SELECT token FROM emails WHERE email = ?', [email]);
             const response = yield (0, supertest_1.default)(server_js_1.server)
                 .post('/email/unsubscribe')
-                .send({ email, access_token })
+                .send({ email, token })
                 .expect(200);
             strict_1.default.equal(response.body.ok, true);
         }));
@@ -81,7 +81,7 @@ const database_js_1 = require("../src/database.js");
                 .post('/email/unsubscribe')
                 .send({
                 email: 'test@example.com',
-                access_token: 'invalid'
+                token: 'invalid'
             })
                 .expect(401);
             strict_1.default.equal(response.body.error, 'Invalid access token');

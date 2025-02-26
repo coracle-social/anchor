@@ -12,7 +12,7 @@ import {
   hasValidSignature,
 } from '@welshman/util'
 import { appSigner, NOTIFIER_SUBSCRIPTION } from './env.js'
-import { getActiveSubscriptionsForPubkey, getSubscription } from './database.js'
+import { getSubscriptionsForPubkey, getSubscription } from './database.js'
 import { addSubscription, processDelete } from './actions.js'
 import { createStatusEvent } from './domain.js'
 
@@ -107,7 +107,7 @@ export class Connection {
     }
 
     const userPubkey = this.auth.event.pubkey
-    const subscriptions = await getActiveSubscriptionsForPubkey(userPubkey)
+    const subscriptions = await getSubscriptionsForPubkey(userPubkey)
     const subscriptionEvents = pluck<SignedEvent>('event', subscriptions)
     const statusEvents = await Promise.all(subscriptions.map(createStatusEvent))
 

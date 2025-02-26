@@ -12,15 +12,6 @@ export class ActionError extends Error {
   }
 }
 
-export type UnsubscribeParams = Pick<Subscription, 'token'>
-
-export const unsubscribe = instrument(
-  'actions.unsubscribe',
-  async ({ token }: UnsubscribeParams) => {
-    await db.unsubscribeSubscription(token)
-  }
-)
-
 export type AddSubscriptionParams = Pick<Subscription, 'event' | 'tags'>
 
 export const addSubscription = instrument(
@@ -31,23 +22,38 @@ export const addSubscription = instrument(
     if (subscription.email.includes('@')) {
       await mailer.sendConfirm(subscription)
     }
-
-    worker.registerSubscription(subscription)
   }
 )
 
-export type ConfirmSubscriptionParams = { confirm_token: string }
+export type ConfirmSubscriptionParams = Pick<Subscription, 'token'>
 
 export const confirmSubscription = instrument(
   'actions.confirmSubscription',
-  async ({ confirm_token }: ConfirmSubscriptionParams) => {
-    if (!(await db.confirmSubscription(confirm_token))) {
+  async ({ token }: ConfirmSubscriptionParams) => {
+    const subscription = await db.confirmSubscription(token)
+
+    if (subscription) {
+      worker.registerSubscription(subscription)
+    } else {
       throw new ActionError('It looks like that confirmation code is invalid or has expired.')
     }
   }
 )
 
-export type ProcessDeleteParams = { event: SignedEvent }
+export type UnsubscribeParams = Pick<Subscription, 'token'>
+
+export const unsubscribe = instrument(
+  'actions.unsubscribe',
+  async ({ token }: UnsubscribeParams) => {
+    const subscription = await db.unsubscribeSubscription(token)
+
+    if (subscription) {
+      worker.unregisterSubscription(subscription)
+    }
+  }
+)
+
+export type ProcessDeleteParams = Pick<Subscription, 'event'>
 
 export const processDelete = instrument(
   'actions.processDelete',
@@ -63,7 +69,11 @@ export const processDelete = instrument(
         continue
       }
 
-      await db.deleteSubscription(getAddress(event), event.created_at)
+      const subscription = await db.deleteSubscription(address, event.created_at)
+
+      if (subscription) {
+        worker.unregisterSubscription(subscription)
+      }
     }
   }
 )

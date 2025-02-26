@@ -41,11 +41,11 @@ describe('Server', () => {
   describe('POST /email/confirm', () => {
     it('confirms valid email token', async () => {
       const email = 'test@example.com'
-      const confirm_token = await addEmail({ email })
+      const token = await addEmail({ email })
 
       const response = await request(server)
         .post('/email/confirm')
-        .send({ email, confirm_token })
+        .send({ email, token })
         .expect(200)
 
       assert.equal(response.body.ok, true)
@@ -56,7 +56,7 @@ describe('Server', () => {
         .post('/email/confirm')
         .send({
           email: 'test@example.com',
-          confirm_token: 'invalid'
+          token: 'invalid'
         })
         .expect(400)
 
@@ -67,12 +67,12 @@ describe('Server', () => {
   describe('POST /email/unsubscribe', () => {
     it('removes email with valid token', async () => {
       const email = 'test@example.com'
-      const confirm_token = await addEmail({ email })
-      const {access_token} = await get('SELECT access_token FROM emails WHERE email = ?', [email])
+      const token = await addEmail({ email })
+      const {token} = await get('SELECT token FROM emails WHERE email = ?', [email])
 
       const response = await request(server)
         .post('/email/unsubscribe')
-        .send({ email, access_token })
+        .send({ email, token })
         .expect(200)
 
       assert.equal(response.body.ok, true)
@@ -83,7 +83,7 @@ describe('Server', () => {
         .post('/email/unsubscribe')
         .send({
           email: 'test@example.com',
-          access_token: 'invalid'
+          token: 'invalid'
         })
         .expect(401)
 
