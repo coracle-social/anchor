@@ -3,13 +3,12 @@ import { server } from './server.js'
 import { registerSubscription } from './worker.js'
 import { migrate, getAllSubscriptions } from './database.js'
 
-// Add global error handlers to ensure stack traces are logged
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason)
+process.on('unhandledRejection', (error: Error) => {
+  console.log(error.stack)
 })
 
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error)
+process.on('uncaughtException', (error: Error) => {
+  console.log(error.stack)
 })
 
 migrate().then(async () => {

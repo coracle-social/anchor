@@ -1,48 +1,49 @@
+import {instrument} from 'succinct-async'
 import { getTagValue, getTagValues, getAddress, SignedEvent } from '@welshman/util'
 import {NOTIFIER_SUBSCRIPTION} from './env.js'
 import {EmailUser, Subscription} from './domain.js'
-import { insertEmailUser, confirmEmailUser, deleteSubscription, deleteEmailUser, authenticateEmailUser, insertSubscription } from './database.js'
-import { sendConfirmEmail } from './mailgun.js'
-import { registerSubscription } from './worker.js'
+import * as mailer from './mailgun.js'
+import * as worker from './worker.js'
+import * as db from './database.js'
 
-class ApplicationError extends Error {}
-
-export type ConfirmEmailParams = {email: string, confirm_token: string}
-
-export async function confirmEmail({email, confirm_token}: ConfirmEmailParams) {
-  if (!await confirmEmailUser(email, confirm_token)) {
-    throw new ApplicationError("It looks like that confirmation code is invalid or has expired.")
-  }
-}
+export class ActionError extends Error {}
 
 export type UnsubscribeEmailParams = {email: string, access_token: string}
 
-export async function unsubscribeEmail({email, access_token}: UnsubscribeEmailParams) {
-  if (!await authenticateEmailUser(email, access_token)) {
-    throw new ApplicationError("Invalid access token")
+export const unsubscribeEmail = instrument('actions.unsubscribeEmail', async ({email, access_token}: UnsubscribeEmailParams) => {
+  if (!await db.authenticateEmailUser(email, access_token)) {
+    throw new ActionError("Invalid access token")
   }
 
-  await deleteEmailUser(email)
-}
+  await db.deleteEmailUser(email)
+})
 
 export type AddSubscriptionParams = Pick<Subscription, 'event' | 'tags'>
 
-export async function addSubscription({event, tags}: AddSubscriptionParams) {
+export const addSubscription = instrument('actions.addSubscription', async ({event, tags}: AddSubscriptionParams) => {
   const email = getTagValue('email', tags)
-  const subscription = await insertSubscription(event, tags)
+  const subscription = await db.insertSubscription(event, tags)
 
   if (email) {
-    const user = await insertEmailUser(email)
+    const user = await db.insertEmailUser(email)
 
-    await sendConfirmEmail(user, subscription)
+    await mailer.sendConfirmEmail(user, subscription)
   }
 
-  registerSubscription(subscription)
-}
+  worker.registerSubscription(subscription)
+})
+
+export type ConfirmSubscriptionParams = {confirm_token: string}
+
+export const confirmSubscription = instrument('actions.confirmSubscription', async ({confirm_token}: ConfirmSubscriptionParams) => {
+  if (!await db.confirmSubscription(confirm_token)) {
+    throw new ActionError("It looks like that confirmation code is invalid or has expired.")
+  }
+})
 
 export type ProcessDeleteParams = {event: SignedEvent}
 
-export const processDelete = async ({event}: ProcessDeleteParams) => {
+export const processDelete = instrument('actions.processDelete', async ({event}: ProcessDeleteParams) => {
   for (const address of getTagValues('a', event.tags)) {
     const [kind, pubkey] = address.split(':')
 
@@ -54,7 +55,7 @@ export const processDelete = async ({event}: ProcessDeleteParams) => {
       continue
     }
 
-    await deleteSubscription(getAddress(event), event.created_at)
+    await db.deleteSubscription(getAddress(event), event.created_at)
   }
-}
+})
 

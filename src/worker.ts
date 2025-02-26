@@ -30,56 +30,61 @@ const createJob = (subscription: Subscription) => {
   const webHandlers = handlers.filter(nthEq(3, 'web'))
 
   const run = async () => {
-    const statusTags = await getStatusTags(subscription)
-    const [status, message] = statusTags.map(nth(1))
+    try {
+      const statusTags = await getStatusTags(subscription)
+      const [status, message] = statusTags.map(nth(1))
 
-    if (status !== 'ok') {
-      return console.log('skipping job', subscription.address, status, message)
+      if (status !== 'ok') {
+        return console.log('worker: job skipped', subscription.address, status, message)
+      }
+
+      console.log('worker: job starting', subscription.address)
+
+      const now = Date.now()
+      const user = await getEmailUser(email!)
+
+      const [events, handlerEvents] = await Promise.all([
+        load({relays, filters: filters.map(assoc('since', since))}),
+        load({
+          relays: webHandlers.map(nth(2)),
+          filters: getIdFilters(webHandlers.map(nth(1))),
+        }),
+      ])
+
+      if (events.length > 0) {
+        const context = await load({relays, filters: getReplyFilters(events)})
+        const handlerTemplates = handlerEvents.flatMap(e => e.tags.filter(nthEq(0, 'web')).map(nth(1)))
+        const handlerTemplate = handlerTemplates[0] || 'https://coracle.social/'
+
+        await sendDigest(user!, handlerTemplate, events, context)
+      }
+
+      console.log('worker: job completed', subscription.address, 'in', Date.now() - now, 'ms')
+    } catch (e) {
+      console.log('worker: job failed', subscription.address, e)
     }
-
-    console.log('running job', subscription.address)
-
-    const now = Date.now()
-    const user = await getEmailUser(email!)
-
-    const [events, handlerEvents] = await Promise.all([
-      load({relays, filters: filters.map(assoc('since', since))}),
-      load({
-        relays: webHandlers.map(nth(2)),
-        filters: getIdFilters(webHandlers.map(nth(1))),
-      }),
-    ])
-
-    if (events.length > 0) {
-      const context = await load({relays, filters: getReplyFilters(events)})
-      const handlerTemplates = handlerEvents.flatMap(e => e.tags.filter(nthEq(0, 'web')).map(nth(1)))
-      const handlerTemplate = handlerTemplates[0] || 'https://coracle.social/'
-
-      await sendDigest(user!, handlerTemplate, events, context)
-    }
-
-    console.log('finished job', subscription.address, 'in', Date.now() - now, 'ms')
   }
 
-  const job = CronJob.from({
+  return CronJob.from({
     cronTime: cron,
+    // cronTime: '0,15,30,45 * * * * *',
     onTick: run,
     start: true,
     timeZone: 'UTC',
   })
-
-  console.log('registered job', subscription.address, 'for', job.nextDate().toISO()!.slice(0, -8))
-
-  return job
 }
 
 export const registerSubscription = (subscription: Subscription) => {
   jobsByAddress.get(subscription.address)?.stop()
   jobsByAddress.set(subscription.address, createJob(subscription))
+
+  console.log('registered job', subscription.address)
 }
 
 export const unregisterSubscription = (subscription: Subscription) => {
   jobsByAddress.get(subscription.address)?.stop()
   jobsByAddress.delete(subscription.address)
+
+  console.log('unregistered job', subscription.address)
 }
 

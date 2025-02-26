@@ -41,6 +41,7 @@
     "mustache": "^4.2.0",
     "nostr-tools": "^2.10.3",
     "sqlite3": "^5.1.7",
+    "succinct-async": "^1.0.4",
     "ts-node-dev": "^2.0.0",
     "ws": "^8.13.0"
   }

@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express'
+import {instrument} from 'succinct-async'
+import express, { Request, Response, NextFunction } from 'express'
 import addWebsockets, { Application } from 'express-ws'
 import rateLimit from 'express-rate-limit'
 import { WebSocket } from 'ws'
@@ -6,7 +7,7 @@ import { appSigner } from './env.js'
 import { getError } from './schema.js'
 import { render } from './templates.js'
 import { Connection } from './relay.js'
-import { confirmEmail, unsubscribeEmail } from './actions.js'
+import { confirmSubscription, unsubscribeEmail, ActionError } from './actions.js'
 
 // Utils
 
@@ -24,10 +25,29 @@ export const server: Application = express() as unknown as Application
 
 addWebsockets(server)
 
-server.use(rateLimit({limit: 30, windowMs: 5 * 60 * 1000}))
 server.use(express.json())
 
-server.get('/', async (_req: Request, res: Response) => {
+server.use(rateLimit({limit: 30, windowMs: 5 * 60 * 1000}))
+
+type Handler = (req: Request, res: Response, next?: NextFunction) => Promise<void>
+
+const addRoute = (method: "get" | "post", path: string, handler: Handler) => {
+  server[method](
+    path,
+    instrument(
+      path,
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          await handler(req, res, next)
+        } catch (e) {
+          next(e)
+        }
+      }
+    )
+  )
+}
+
+addRoute("get", '/', async (_req: Request, res: Response) => {
   res.set({'Content-Type': 'application/nostr+json; charset=utf-8'})
 
   res.json({
@@ -39,27 +59,27 @@ server.get('/', async (_req: Request, res: Response) => {
   })
 })
 
-server.get('/confirm', async (req: Request, res: Response) => {
+addRoute('get', '/confirm', async (req: Request, res: Response) => {
   res.send(await render('pages/confirm.html', req.query))
 })
 
-server.get('/unsubscribe', async (req: Request, res: Response) => {
+addRoute('get', '/unsubscribe', async (req: Request, res: Response) => {
   res.send(await render('pages/unsubscribe.html', req.query))
 })
 
-server.post('/email/confirm', async (req: Request, res: Response) => {
-  const error = getError({email: 'str', confirm_token: 'str'}, req.body)
+addRoute('post', '/email/confirm', async (req: Request, res: Response) => {
+  const error = getError({confirm_token: 'str'}, req.body)
 
   if (error) {
     return _err(res, 400, error.message)
   }
 
-  const confirmed = await confirmEmail(req.body)
+  await confirmSubscription(req.body)
 
   _ok(res)
 })
 
-server.post('/email/unsubscribe', async (req: Request, res: Response) => {
+addRoute('post', '/email/unsubscribe', async (req: Request, res: Response) => {
   const error = getError({email: 'str', access_token: 'str'}, req.body)
 
   if (error) {
@@ -77,4 +97,13 @@ server.ws('/', (socket: WebSocket, request: Request) => {
   socket.on('message', msg => connection.handle(msg))
   socket.on('error', () => connection.cleanup())
   socket.on('close', () => connection.cleanup())
+})
+
+server.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof ActionError) {
+    return _err(res, 400, err.message)
+  }
+
+  console.error('Unhandled error:', err.stack)
+  _err(res, 500, 'Internal server error')
 })

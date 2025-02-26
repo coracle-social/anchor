@@ -1,5 +1,6 @@
 import sqlite3 from 'sqlite3'
 import crypto from 'crypto'
+import {instrument} from 'succinct-async'
 import type { SignedEvent } from '@welshman/util'
 import { getTagValues, getAddress } from '@welshman/util'
 import type {Subscription, EmailUser} from './domain.js'
@@ -76,7 +77,7 @@ export const migrate = () =>
 
 // Email address management
 
-export function insertEmailUser(email: string) {
+export const insertEmailUser = instrument('database.insertEmailUser', (email: string) => {
   return assertResult(
     get<EmailUser>(
       `INSERT INTO email_users (email, access_token) VALUES (?, ?)
@@ -85,31 +86,22 @@ export function insertEmailUser(email: string) {
       [email, crypto.randomBytes(32).toString('hex')],
     )
   )
-}
+})
 
-export function confirmEmailUser(email: string, confirm_token: string) {
-  return get<EmailUser>(
-    `UPDATE email_users SET confirmed_at = unixepoch(), confirm_token = null
-     WHERE email = ? AND confirm_token = ? AND confirmed_at IS NULL
-     RETURNING *`,
-    [email, confirm_token],
-  )
-}
-
-export function authenticateEmailUser(email: string, access_token: string) {
+export const authenticateEmailUser = instrument('database.authenticateEmailUser', (email: string, access_token: string) => {
   return get<EmailUser>(
     `SELECT * FROM email_users WHERE email = ? AND access_token = ?`,
     [email, access_token]
   )
-}
+})
 
-export function deleteEmailUser(email: string) {
+export const deleteEmailUser = instrument('database.deleteEmailUser', (email: string) => {
   return get<EmailUser>(`DELETE FROM email_users WHERE email = ? RETURNING *`, [email])
-}
+})
 
-export function getEmailUser(email: string) {
+export const getEmailUser = instrument('database.getEmailUser', (email: string) => {
   return get<EmailUser>(`SELECT * FROM email_users WHERE email = ?`, [email])
-}
+})
 
 // Subscriptions
 
@@ -140,32 +132,42 @@ export async function insertSubscription(event: SignedEvent, tags: string[][]) {
   )
 }
 
-export async function deleteSubscription(address: string, deleted_at: number) {
+export const confirmSubscription = instrument('database.confirmSubscription', (confirm_token: string) => {
+  return assertResult(
+    get<Subscription>(
+      `UPDATE subscriptions SET confirmed_at = unixepoch(), confirm_token = null
+       WHERE confirm_token = ? AND confirmed_at IS NULL RETURNING *`,
+      [confirm_token],
+    )
+  )
+})
+
+export const deleteSubscription = instrument('database.deleteSubscription', async (address: string, deleted_at: number) => {
   return parseSubscription(
     await get(
-      `UPDATE subscriptions SET deleted_at = ? confirmed_at = ? confirm_token = ?
+      `UPDATE subscriptions SET deleted_at = ?, confirmed_at = ?, confirm_token = ?
        WHERE address = ? AND created_at < ? RETURNING *`,
       [address, deleted_at, crypto.randomBytes(32).toString('hex'), deleted_at]
     )
   )
-}
+})
 
-export async function getAllSubscriptions() {
+export const getAllSubscriptions = instrument('database.getAllSubscriptions', async () => {
   const rows = await all(`SELECT * FROM subscriptions`)
 
   return rows.map(parseSubscription)
-}
+})
 
-export async function getSubscription(address: string) {
+export const getSubscription = instrument('database.getSubscription', async (address: string) => {
   const row = await get(`SELECT * FROM subscriptions WHERE address = ?`, [address])
 
   if (row) {
     return parseSubscription(row)
   }
-}
+})
 
-export async function getSubscriptionsForPubkey(pubkey: string) {
+export const getSubscriptionsForPubkey = instrument('database.getSubscriptionsForPubkey', async (pubkey: string) => {
   const rows = await all(`SELECT * FROM subscriptions WHERE pubkey = ?`, [pubkey])
 
   return rows.map(parseSubscription)
-}
+})
