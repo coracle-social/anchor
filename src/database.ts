@@ -114,11 +114,12 @@ export async function insertSubscription(event: SignedEvent, tags: string[][]) {
       `INSERT INTO subscriptions (address, created_at, pubkey, event, tags, confirm_token)
        VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(address) DO UPDATE SET
-        created_at=excluded.created_at,
         deleted_at=null,
+        created_at=excluded.created_at,
         pubkey=excluded.pubkey,
         event=excluded.event,
-        tags=excluded.tags
+        tags=excluded.tags,
+        confirm_token=excluded.confirm_token
        RETURNING *`,
       [
         getAddress(event),
@@ -143,17 +144,21 @@ export const confirmSubscription = instrument('database.confirmSubscription', (c
 })
 
 export const deleteSubscription = instrument('database.deleteSubscription', async (address: string, deleted_at: number) => {
-  return parseSubscription(
-    await get(
-      `UPDATE subscriptions SET deleted_at = ?, confirmed_at = ?, confirm_token = ?
-       WHERE address = ? AND created_at < ? RETURNING *`,
-      [address, deleted_at, crypto.randomBytes(32).toString('hex'), deleted_at]
-    )
+  const row = await get(
+    `UPDATE subscriptions SET deleted_at = ?, confirmed_at = ?
+     WHERE address = ? AND created_at < ? RETURNING *`,
+    [address, address, deleted_at, deleted_at]
   )
+
+  if (row) {
+    return parseSubscription(row)
+  }
 })
 
-export const getAllSubscriptions = instrument('database.getAllSubscriptions', async () => {
-  const rows = await all(`SELECT * FROM subscriptions`)
+export const getActiveSubscriptions = instrument('database.getAllSubscriptions', async () => {
+  const rows = await all(
+    `SELECT * FROM subscriptions WHERE coalesce(deleted_at, 0) < coalesce(confirmed_at, 0)`
+  )
 
   return rows.map(parseSubscription)
 })
@@ -166,8 +171,12 @@ export const getSubscription = instrument('database.getSubscription', async (add
   }
 })
 
-export const getSubscriptionsForPubkey = instrument('database.getSubscriptionsForPubkey', async (pubkey: string) => {
-  const rows = await all(`SELECT * FROM subscriptions WHERE pubkey = ?`, [pubkey])
+export const getActiveSubscriptionsForPubkey = instrument('database.getSubscriptionsForPubkey', async (pubkey: string) => {
+  const rows = await all(
+    `SELECT * FROM subscriptions
+     WHERE pubkey = ? AND coalesce(deleted_at, 0) < coalesce(confirmed_at, 0)`,
+    [pubkey]
+  )
 
   return rows.map(parseSubscription)
 })

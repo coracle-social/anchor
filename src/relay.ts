@@ -5,7 +5,7 @@ import { parseJson, gt, pluck, ago, MINUTE, randomId } from '@welshman/lib'
 import type { SignedEvent, Filter } from '@welshman/util'
 import { DELETE, getAddress, matchFilters, getTagValue, getTagValues, hasValidSignature } from '@welshman/util'
 import { appSigner, NOTIFIER_SUBSCRIPTION } from './env.js'
-import { getEmailUser, getSubscriptionsForPubkey, getSubscription } from './database.js'
+import { getEmailUser, getActiveSubscriptionsForPubkey, getSubscription } from './database.js'
 import { addSubscription, processDelete } from './actions.js'
 import { sendConfirmEmail } from './mailgun.js'
 import { registerSubscription } from './worker.js'
@@ -102,7 +102,7 @@ export class Connection {
     }
 
     const userPubkey = this.auth.event.pubkey
-    const subscriptions = await getSubscriptionsForPubkey(userPubkey)
+    const subscriptions = await getActiveSubscriptionsForPubkey(userPubkey)
     const subscriptionEvents = pluck<SignedEvent>('event', subscriptions)
     const statusEvents = await Promise.all(subscriptions.map(createStatusEvent))
 
