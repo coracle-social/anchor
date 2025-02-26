@@ -24,13 +24,13 @@ export const sendConfirmEmail = ({email}: EmailUser, {confirm_token}: Subscripti
   return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
     to: email,
-    subject: 'Confirm your email',
+    subject: 'Confirm your alert',
     html: `
       <h3>Welcome to ${ANCHOR_NAME}!</h3>
-      <p>Please confirm your email address by clicking the link below:</p>
-      <p><a href="${href}">Confirm Email</a></p>
+      <p>Please confirm that you would like to receive alerts by clicking the link below:</p>
+      <p><a href="${href}">Confirm Alert</a></p>
     `,
-    text: `Please confirm your email address by visiting: ${href}`
+    text: `Please confirm that you would like to receive alerts by visiting: ${href}`
   })
 }
 

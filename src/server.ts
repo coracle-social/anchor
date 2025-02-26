@@ -29,7 +29,7 @@ server.use(express.json())
 
 server.use(rateLimit({limit: 30, windowMs: 5 * 60 * 1000}))
 
-type Handler = (req: Request, res: Response, next?: NextFunction) => Promise<void>
+type Handler = (req: Request, res: Response, next?: NextFunction) => Promise<any>
 
 const addRoute = (method: "get" | "post", path: string, handler: Handler) => {
   server[method](
@@ -60,35 +60,33 @@ addRoute("get", '/', async (_req: Request, res: Response) => {
 })
 
 addRoute('get', '/confirm', async (req: Request, res: Response) => {
-  res.send(await render('pages/confirm.html', req.query))
+  const error = getError({confirm_token: 'str'}, req.query)
+
+  if (error) {
+    return res.send(await render('pages/confirm-error.html', {
+      message: "No confirmation token was provided.",
+    }))
+  }
+
+  try {
+    await confirmSubscription(req.query as any)
+
+    res.send(await render('pages/confirm-success.html'))
+  } catch (error) {
+    return res.send(await render('pages/confirm-error.html', {
+      message: String(error),
+    }))
+  }
 })
 
 addRoute('get', '/unsubscribe', async (req: Request, res: Response) => {
-  res.send(await render('pages/unsubscribe.html', req.query))
-})
-
-addRoute('post', '/email/confirm', async (req: Request, res: Response) => {
-  const error = getError({confirm_token: 'str'}, req.body)
-
-  if (error) {
-    return _err(res, 400, error.message)
+  try {
+    await unsubscribeEmail(req.query as any)
+  } catch (error) {
+    // pass
   }
 
-  await confirmSubscription(req.body)
-
-  _ok(res)
-})
-
-addRoute('post', '/email/unsubscribe', async (req: Request, res: Response) => {
-  const error = getError({email: 'str', access_token: 'str'}, req.body)
-
-  if (error) {
-    return _err(res, 400, error.message)
-  }
-
-  await unsubscribeEmail(req.body)
-
-  _ok(res)
+  res.send(await render('pages/unsubscribe-success.html'))
 })
 
 server.ws('/', (socket: WebSocket, request: Request) => {

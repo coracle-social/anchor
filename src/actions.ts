@@ -6,7 +6,11 @@ import * as mailer from './mailgun.js'
 import * as worker from './worker.js'
 import * as db from './database.js'
 
-export class ActionError extends Error {}
+export class ActionError extends Error {
+  toString() {
+    return this.message
+  }
+}
 
 export type UnsubscribeEmailParams = {email: string, access_token: string}
 

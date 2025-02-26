@@ -66,8 +66,8 @@ const createJob = (subscription: Subscription) => {
   }
 
   return CronJob.from({
-    cronTime: cron,
-    // cronTime: '0,15,30,45 * * * * *',
+    // cronTime: cron,
+    cronTime: '0,15,30,45 * * * * *',
     onTick: run,
     start: true,
     timeZone: 'UTC',

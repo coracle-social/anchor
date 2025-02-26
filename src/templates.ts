@@ -20,5 +20,5 @@ const loadTemplate = async (name: string) => {
   return templateCache.get(name)!
 }
 
-export const render = async (name: string, view: Record<string, any>) =>
+export const render = async (name: string, view: Record<string, any> = {}) =>
   Mustache.render(await loadTemplate(name), view)
