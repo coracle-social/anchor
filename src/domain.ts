@@ -35,24 +35,9 @@ export type SubscriptionParams = {
   filters: Filter[]
   handlers: string[][]
   channel: Channel
+  email?: string
   bunker_url?: string
   pause_until?: number
-  email?: string
-  token?: string
-  platform?: string
-}
-
-export const getChannelParams = (subscription: Subscription) => {
-  const { channel, email, token, platform } = fromPairs(subscription.tags)
-
-  switch (channel) {
-    case Channel.Email:
-      return { email }
-    case Channel.Push:
-      return { token, platform }
-    default:
-      return {}
-  }
 }
 
 export const getSubscriptionParams = (subscription: Subscription): SubscriptionParams => {
@@ -64,7 +49,7 @@ export const getSubscriptionParams = (subscription: Subscription): SubscriptionP
     filters: getTagValues('filter', subscription.tags).map(parseJson),
     pause_until: parseInt(getTagValue('pause_until', subscription.tags) || '') || 0,
     bunker_url: getTagValue('cron', subscription.tags),
-    ...getChannelParams(subscription),
+    email: getTagValue('email', subscription.tags),
   }
 }
 

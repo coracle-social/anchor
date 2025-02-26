@@ -7,22 +7,17 @@
     "build:mjml": "mkdir -p dist/emails && mjml src/emails/*.mjml -o dist/emails/",
     "lint": "eslint src",
     "format": "prettier --write \"src/**/*.{ts,js,json,html}\"",
-    "start": "node dist/index.js",
-    "test": "node --test test/*.test.js"
+    "start": "node dist/index.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
     "@types/express-ws": "^3.0.5",
-    "@types/jest": "^29.5.14",
     "@types/mustache": "^4.2.5",
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
     "eslint": "^9.15.0",
     "globals": "^15.12.0",
-    "jest": "^29.7.0",
     "prettier": "^3.5.2",
-    "supertest": "^6.3.4",
-    "ts-jest": "^29.2.5",
     "typescript": "^5.7.3"
   },
   "dependencies": {
