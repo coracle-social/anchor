@@ -1,36 +1,36 @@
 import { CronJob } from 'cron'
 import { nth, assoc, nthEq } from '@welshman/lib'
 import { getIdFilters, getTagValue, getReplyFilters } from '@welshman/util'
-import type { Subscription } from './domain.js'
-import { getSubscriptionParams, getStatusTags } from './domain.js'
+import type { Alert } from './alert.js'
+import { getAlertParams, getStatusTags } from './alert.js'
 import * as digest from './digest.js'
 
 const jobsByAddress = new Map()
 
-const createJob = (subscription: Subscription) => {
-  const { cron, relays, filters, handlers, pause_until } = getSubscriptionParams(subscription)
+const createJob = (alert: Alert) => {
+  const { cron, relays, filters, handlers, pause_until } = getAlertParams(alert)
 
   const run = async () => {
     try {
-      const statusTags = await getStatusTags(subscription)
+      const statusTags = await getStatusTags(alert)
       const status = getTagValue('status', statusTags)
       const message = getTagValue('message', statusTags)
 
       if (status !== 'ok') {
-        return console.log('worker: job skipped', subscription.address, status, message)
+        return console.log('worker: job skipped', alert.address, status, message)
       }
 
-      console.log('worker: job starting', subscription.address)
+      console.log('worker: job starting', alert.address)
 
       const now = Date.now()
 
-      if (await digest.send(subscription)) {
-        console.log('worker: job completed', subscription.address, 'in', Date.now() - now, 'ms')
+      if (await digest.send(alert)) {
+        console.log('worker: job completed', alert.address, 'in', Date.now() - now, 'ms')
       } else {
-        console.log('worker: job skipped', subscription.address, 'ok', 'no data received')
+        console.log('worker: job skipped', alert.address, 'ok', 'no data received')
       }
     } catch (e) {
-      console.log('worker: job failed', subscription.address, e)
+      console.log('worker: job failed', alert.address, e)
     }
   }
 
@@ -43,16 +43,16 @@ const createJob = (subscription: Subscription) => {
   })
 }
 
-export const registerSubscription = (subscription: Subscription) => {
-  jobsByAddress.get(subscription.address)?.stop()
-  jobsByAddress.set(subscription.address, createJob(subscription))
+export const registerAlert = (alert: Alert) => {
+  jobsByAddress.get(alert.address)?.stop()
+  jobsByAddress.set(alert.address, createJob(alert))
 
-  console.log('registered job', subscription.address)
+  console.log('registered job', alert.address)
 }
 
-export const unregisterSubscription = (subscription: Subscription) => {
-  jobsByAddress.get(subscription.address)?.stop()
-  jobsByAddress.delete(subscription.address)
+export const unregisterAlert = (alert: Alert) => {
+  jobsByAddress.get(alert.address)?.stop()
+  jobsByAddress.delete(alert.address)
 
-  console.log('unregistered job', subscription.address)
+  console.log('unregistered job', alert.address)
 }

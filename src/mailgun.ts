@@ -2,7 +2,7 @@ import FormData from 'form-data'
 import Mailgun from 'mailgun.js'
 import { TrustedEvent } from '@welshman/util'
 import { MAILGUN_API_KEY, MAILGUN_DOMAIN, ANCHOR_NAME, ANCHOR_URL } from './env.js'
-import { Subscription } from './domain.js'
+import { Alert } from './alert.js'
 import { render } from './templates.js'
 
 // @ts-expect-error Mailgun has no constructor signature
@@ -18,7 +18,7 @@ const send = (data: Record<string, any>) => {
   }
 }
 
-export const sendConfirm = ({ email, token }: Subscription) => {
+export const sendConfirm = ({ email, token }: Alert) => {
   const href = `${ANCHOR_URL}/confirm?email=${encodeURIComponent(email)}&token=${token}`
 
   return send({
@@ -34,7 +34,7 @@ export const sendConfirm = ({ email, token }: Subscription) => {
   })
 }
 
-export const sendDigest = async ({ email, token }: Subscription, template: string, variables: Record<string, any>) => {
+export const sendDigest = async ({ email, token }: Alert, template: string, variables: Record<string, any>) => {
   return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
     to: email,

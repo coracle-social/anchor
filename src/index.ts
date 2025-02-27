@@ -4,8 +4,8 @@ import { setContext } from '@welshman/lib'
 import { getDefaultNetContext, getDefaultAppContext } from '@welshman/app'
 import { PORT } from './env.js'
 import { server } from './server.js'
-import { registerSubscription } from './worker.js'
-import { migrate, getActiveSubscriptions } from './database.js'
+import { registerAlert } from './worker.js'
+import { migrate, getActiveAlerts } from './database.js'
 
 setContext({
   app: getDefaultAppContext(),
@@ -25,7 +25,7 @@ migrate().then(async () => {
     console.log('Running on port', PORT)
   })
 
-  for (const subscription of await getActiveSubscriptions()) {
-    registerSubscription(subscription)
+  for (const alert of await getActiveAlerts()) {
+    registerAlert(alert)
   }
 })

@@ -7,7 +7,7 @@ A nostr notifier service.
 pubkey=27b7c2ed89ef78322114225ea3ebf5f72c7767c2528d4d0c1854d039c00085df
 relay=localhost:4738
 
-# Configure our subscription
+# Configure our alert
 tags=$(cat <<EOF
 [
   ["channel","email"],
@@ -19,12 +19,12 @@ EOF
 )
 
 # Encrypt it
-subscription_ciphertext="$(nak encrypt -p $pubkey $tags)"
+alert_ciphertext="$(nak encrypt -p $pubkey $tags)"
 
-# Publish our subscription to the relay
-nak event -k 32830 -p $pubkey -t d=my-subscription -c $subscription_ciphertext $relay
+# Publish our alert to the relay
+nak event -k 32830 -p $pubkey -t d=my-alert -c $alert_ciphertext $relay
 
-# Request status for all our subscriptions and decrypt the content
+# Request status for all our alerts and decrypt the content
 status_ciphertext=$(nak req -k 32831 --auth $relay | jq -r '.content')
 status=$(nak decrypt -p $pubkey $status_ciphertext)
 
@@ -34,5 +34,3 @@ echo $status
 # TODO
 
 - [ ] Serve deletes
-- [ ] Rename subscription to alert
-- [ ] move domain to alert.ts

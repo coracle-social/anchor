@@ -2,7 +2,7 @@ import sqlite3 from 'sqlite3'
 import crypto from 'crypto'
 import { instrument } from 'succinct-async'
 import { SignedEvent, getTagValue, getAddress } from '@welshman/util'
-import type { Subscription } from './domain.js'
+import type { Alert } from './alert.js'
 
 const db = new sqlite3.Database('anchor.db')
 
@@ -53,7 +53,7 @@ export const migrate = () =>
     db.serialize(() => {
       db.run(
         `
-        CREATE TABLE IF NOT EXISTS subscriptions (
+        CREATE TABLE IF NOT EXISTS alerts (
           address TEXT PRIMARY KEY,
           pubkey TEXT NOT NULL,
           email TEXT NOT NULL,
@@ -74,19 +74,19 @@ export const migrate = () =>
     })
   })
 
-// Subscriptions
+// Alerts
 
-const parseSubscription = (row: any): Subscription | undefined => {
+const parseAlert = (row: any): Alert | undefined => {
   if (row) {
     return {...row, event: JSON.parse(row.event), tags: JSON.parse(row.tags)}
   }
 }
 
-export async function insertSubscription(event: SignedEvent, tags: string[][]) {
+export async function insertAlert(event: SignedEvent, tags: string[][]) {
   return assertResult(
-    parseSubscription(
+    parseAlert(
       await get(
-        `INSERT INTO subscriptions (address, created_at, pubkey, email, event, tags, token)
+        `INSERT INTO alerts (address, created_at, pubkey, email, event, tags, token)
          VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(address) DO UPDATE SET
           created_at=excluded.created_at,
@@ -110,61 +110,61 @@ export async function insertSubscription(event: SignedEvent, tags: string[][]) {
   )
 }
 
-export const confirmSubscription = instrument('database.confirmSubscription', async (token: string) => {
-  return parseSubscription(
-    await get<Subscription>(
-      `UPDATE subscriptions SET confirmed_at = unixepoch()
+export const confirmAlert = instrument('database.confirmAlert', async (token: string) => {
+  return parseAlert(
+    await get<Alert>(
+      `UPDATE alerts SET confirmed_at = unixepoch()
        WHERE token = ? AND confirmed_at IS NULL RETURNING *`,
       [token]
     )
   )
 })
 
-export const unsubscribeSubscription = instrument(
-  'database.unsubscribeSubscription',
+export const unsubscribeAlert = instrument(
+  'database.unsubscribeAlert',
   async (token: string) => {
-    return parseSubscription(
-      await get<Subscription>(
-        `UPDATE subscriptions SET unsubscribed_at = unixepoch() WHERE token = ? RETURNING *`,
+    return parseAlert(
+      await get<Alert>(
+        `UPDATE alerts SET unsubscribed_at = unixepoch() WHERE token = ? RETURNING *`,
         [token]
       )
     )
   }
 )
 
-export const deleteSubscription = instrument(
-  'database.deleteSubscription',
+export const deleteAlert = instrument(
+  'database.deleteAlert',
   async (address: string, deleted_at: number) => {
-    return parseSubscription(
+    return parseAlert(
       await get(
-        `UPDATE subscriptions SET deleted_at = ? WHERE address = ? RETURNING *`,
+        `UPDATE alerts SET deleted_at = ? WHERE address = ? RETURNING *`,
         [deleted_at, address]
       )
     )
   }
 )
 
-export const getActiveSubscriptions = instrument('database.getActiveSubscriptions', async () => {
+export const getActiveAlerts = instrument('database.getActiveAlerts', async () => {
   const rows = await all(
-    `SELECT * FROM subscriptions
+    `SELECT * FROM alerts
      WHERE coalesce(deleted_at, 0) < coalesce(confirmed_at, 0)
        AND coalesce(unsubscribed_at, 0) < coalesce(confirmed_at, 0)`
   )
 
-  return rows.map(parseSubscription) as Subscription[]
+  return rows.map(parseAlert) as Alert[]
 })
 
-export const getSubscription = instrument('database.getSubscription', async (address: string) => {
-  return parseSubscription(
-    await get(`SELECT * FROM subscriptions WHERE address = ?`, [address])
+export const getAlert = instrument('database.getAlert', async (address: string) => {
+  return parseAlert(
+    await get(`SELECT * FROM alerts WHERE address = ?`, [address])
   )
 })
 
-export const getSubscriptionsForPubkey = instrument(
-  'database.getSubscriptionsForPubkey',
+export const getAlertsForPubkey = instrument(
+  'database.getAlertsForPubkey',
   async (pubkey: string) => {
-    const rows = await all(`SELECT * FROM subscriptions WHERE pubkey = ?`, [pubkey])
+    const rows = await all(`SELECT * FROM alerts WHERE pubkey = ?`, [pubkey])
 
-    return rows.map(parseSubscription) as Subscription[]
+    return rows.map(parseAlert) as Alert[]
   }
 )

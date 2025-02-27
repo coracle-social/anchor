@@ -10,7 +10,7 @@ import {
 } from '@welshman/util'
 import { appSigner, NOTIFIER_STATUS } from './env.js'
 
-export type Subscription = {
+export type Alert = {
   address: string
   pubkey: string
   email: string
@@ -29,7 +29,7 @@ export enum Channel {
   Email = 'email',
 }
 
-export type SubscriptionParams = {
+export type AlertParams = {
   cron: string
   relays: string[]
   filters: Filter[]
@@ -40,26 +40,26 @@ export type SubscriptionParams = {
   pause_until?: number
 }
 
-export const getSubscriptionParams = (subscription: Subscription): SubscriptionParams => {
+export const getAlertParams = (alert: Alert): AlertParams => {
   return {
-    channel: getTagValue('channel', subscription.tags) as Channel,
-    cron: getTagValue('cron', subscription.tags) || '0 0 0 0 0 0',
-    handlers: getTags('handler', subscription.tags),
-    relays: getTagValues('relay', subscription.tags),
-    filters: getTagValues('filter', subscription.tags).map(parseJson),
-    pause_until: parseInt(getTagValue('pause_until', subscription.tags) || '') || 0,
-    bunker_url: getTagValue('cron', subscription.tags),
-    email: getTagValue('email', subscription.tags),
+    channel: getTagValue('channel', alert.tags) as Channel,
+    cron: getTagValue('cron', alert.tags) || '0 0 0 0 0 0',
+    handlers: getTags('handler', alert.tags),
+    relays: getTagValues('relay', alert.tags),
+    filters: getTagValues('filter', alert.tags).map(parseJson),
+    pause_until: parseInt(getTagValue('pause_until', alert.tags) || '') || 0,
+    bunker_url: getTagValue('cron', alert.tags),
+    email: getTagValue('email', alert.tags),
   }
 }
 
-export const getSubscriptionError = async ({
+export const getAlertError = async ({
   channel,
   cron,
   relays,
   filters,
   email,
-}: SubscriptionParams) => {
+}: AlertParams) => {
   if (channel !== Channel.Email) return 'Only email notifications are currently supported.'
   if (!cron) return 'Immediate notifications are not currently supported.'
 
@@ -82,9 +82,9 @@ export const getSubscriptionError = async ({
   if (!email?.includes('@')) return 'Please provide a valid email address'
 }
 
-export const getStatusTags = async (subscription: Subscription) => {
-  const params = getSubscriptionParams(subscription)
-  const error = await getSubscriptionError(params)
+export const getStatusTags = async (alert: Alert) => {
+  const params = getAlertParams(alert)
+  const error = await getAlertError(params)
 
   if (error) {
     return [
@@ -93,36 +93,36 @@ export const getStatusTags = async (subscription: Subscription) => {
     ]
   }
 
-  if (!subscription.confirmed_at) {
+  if (!alert.confirmed_at) {
     return [
       ['status', 'pending'],
-      ['message', 'Please confirm your subscription via email'],
+      ['message', 'Please confirm your alert via email'],
     ]
   }
 
-  if (subscription.unsubscribed_at || subscription.deleted_at) {
+  if (alert.unsubscribed_at || alert.deleted_at) {
     return [
       ['status', 'error'],
-      ['message', 'This subscription has been deactivated'],
+      ['message', 'This alert has been deactivated'],
     ]
   }
 
   return [
     ['status', 'ok'],
-    ['message', 'This subscription is active'],
+    ['message', 'This alert is active'],
   ]
 }
 
-export const createStatusEvent = async (subscription: Subscription) =>
+export const createStatusEvent = async (alert: Alert) =>
   appSigner.sign(
     createEvent(NOTIFIER_STATUS, {
       content: await appSigner.nip44.encrypt(
-        subscription.pubkey,
-        JSON.stringify(await getStatusTags(subscription))
+        alert.pubkey,
+        JSON.stringify(await getStatusTags(alert))
       ),
       tags: [
-        ['d', subscription.address],
-        ['p', subscription.pubkey],
+        ['d', alert.address],
+        ['p', alert.pubkey],
       ],
     })
   )

@@ -2,7 +2,7 @@ import {max, indexBy, assoc, uniq, nth, nthEq} from '@welshman/lib'
 import {SignedEvent, Profile, getIdFilters, getReplyFilters} from '@welshman/util'
 import {loadProfile, dateToSeconds} from '@welshman/app'
 import {parseCronString, load, removeUndefined} from './util.js'
-import {getSubscriptionParams, Subscription, SubscriptionParams} from './domain.js'
+import {getAlertParams, Alert, AlertParams} from './alert.js'
 import {sendDigest} from './mailgun.js'
 
 export const DEFAULT_HANDLER = 'https://coracle.social/'
@@ -13,7 +13,7 @@ export type DigestData = {
   profilesByPubkey: Map<string, Profile>
 }
 
-export async function fetchData({ cron, relays, filters }: SubscriptionParams) {
+export async function fetchData({ cron, relays, filters }: AlertParams) {
   const getCronDate = parseCronString(cron)
   const since = dateToSeconds(getCronDate(-1))
   const events = await load({ relays, filters: filters.map(assoc('since', since)) })
@@ -35,7 +35,7 @@ export async function buildParameters(data: DigestData) {
   }
 }
 
-export async function loadHandler({ handlers }: SubscriptionParams) {
+export async function loadHandler({ handlers }: AlertParams) {
   const webHandlers = handlers.filter(nthEq(3, 'web'))
   const filters = getIdFilters(webHandlers.map(nth(1)))
   const relays = webHandlers.map(nth(2))
@@ -51,8 +51,8 @@ export async function loadHandler({ handlers }: SubscriptionParams) {
   return templates[0] || DEFAULT_HANDLER
 }
 
-export async function send(subscription: Subscription) {
-  const params = getSubscriptionParams(subscription)
+export async function send(alert: Alert) {
+  const params = getAlertParams(alert)
   const data = await fetchData(params)
 
   if (data) {
@@ -61,7 +61,7 @@ export async function send(subscription: Subscription) {
       loadHandler(params)
     ])
 
-    await sendDigest(subscription, handler, variables)
+    await sendDigest(alert, handler, variables)
   }
 
   return Boolean(data)

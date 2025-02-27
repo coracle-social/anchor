@@ -12,9 +12,9 @@ import {
   hasValidSignature,
 } from '@welshman/util'
 import { appSigner, NOTIFIER_SUBSCRIPTION } from './env.js'
-import { getSubscriptionsForPubkey, getSubscription } from './database.js'
-import { addSubscription, processDelete } from './actions.js'
-import { createStatusEvent } from './domain.js'
+import { getAlertsForPubkey, getAlert } from './database.js'
+import { addAlert, processDelete } from './actions.js'
+import { createStatusEvent } from './alert.js'
 
 type AuthState = {
   challenge: string
@@ -103,15 +103,15 @@ export class Connection {
 
   async onREQ(id: string, ...filters: Filter[]) {
     if (!this.auth.event) {
-      return this.send(['CLOSED', id, `auth-required: subscriptions are protected`])
+      return this.send(['CLOSED', id, `auth-required: alerts are protected`])
     }
 
     const userPubkey = this.auth.event.pubkey
-    const subscriptions = await getSubscriptionsForPubkey(userPubkey)
-    const subscriptionEvents = pluck<SignedEvent>('event', subscriptions)
-    const statusEvents = await Promise.all(subscriptions.map(createStatusEvent))
+    const alerts = await getAlertsForPubkey(userPubkey)
+    const alertEvents = pluck<SignedEvent>('event', alerts)
+    const statusEvents = await Promise.all(alerts.map(createStatusEvent))
 
-    for (const event of [...subscriptionEvents, ...statusEvents]) {
+    for (const event of [...alertEvents, ...statusEvents]) {
       if (matchFilters(filters, event)) {
         this.send(['EVENT', id, event])
       }
@@ -133,7 +133,7 @@ export class Connection {
       if (event.kind === DELETE) {
         await this.handleDelete(event)
       } else if (event.kind === NOTIFIER_SUBSCRIPTION) {
-        await this.handleNotifierSubscription(event)
+        await this.handleNotifierAlert(event)
       } else {
         this.send(['OK', event.id, false, 'Event kind not accepted'])
       }
@@ -149,17 +149,17 @@ export class Connection {
     this.send(['OK', event.id, true, ''])
   }
 
-  private async handleNotifierSubscription(event: SignedEvent) {
+  private async handleNotifierAlert(event: SignedEvent) {
     const pubkey = await appSigner.getPubkey()
 
     if (!getTagValues('p', event.tags).includes(pubkey)) {
       return this.send(['OK', event.id, false, 'Event must p-tag this relay'])
     }
 
-    const subscription = await getSubscription(getAddress(event))
+    const alert = await getAlert(getAddress(event))
 
-    if (gt(subscription?.deleted_at, event.created_at)) {
-      return this.send(['OK', event.id, false, 'Subscription has been deleted'])
+    if (gt(alert?.deleted_at, event.created_at)) {
+      return this.send(['OK', event.id, false, 'Alert has been deleted'])
     }
 
     let plaintext: string
@@ -175,7 +175,7 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Encrypted tags are not an array'])
     }
 
-    await addSubscription({ event, tags })
+    await addAlert({ event, tags })
 
     this.send(['OK', event.id, true, ''])
   }
