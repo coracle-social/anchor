@@ -34,3 +34,5 @@ echo $status
 # TODO
 
 - [ ] Serve deletes
+- [ ] Rename subscription to alert
+- [ ] move domain to alert.ts

@@ -34,20 +34,14 @@ export const sendConfirm = ({ email, token }: Subscription) => {
   })
 }
 
-export const sendDigest = async (
-  { email, token }: Subscription,
-  template: string,
-  events: TrustedEvent[],
-  context: TrustedEvent[]
-) => {
+export const sendDigest = async ({ email, token }: Subscription, template: string, variables: Record<string, any>) => {
   return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
     to: email,
     subject: 'New activity',
     html: await render('emails/digest.html', {
+      ...variables,
       name: email.split('@')[0],
-      eventCount: events.length,
-      events: events.map((e) => ({ content: e.content })),
       unsubscribeUrl: `${ANCHOR_URL}/unsubscribe?email=${encodeURIComponent(email)}&token=${token}`,
     }),
   })
