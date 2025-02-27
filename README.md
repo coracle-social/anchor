@@ -34,3 +34,4 @@ echo $status
 # TODO
 
 - [ ] Serve deletes
+- [ ] Add timezone and locale

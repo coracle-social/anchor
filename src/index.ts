@@ -8,8 +8,10 @@ import { registerAlert } from './worker.js'
 import { migrate, getActiveAlerts } from './database.js'
 
 setContext({
-  app: getDefaultAppContext(),
   net: getDefaultNetContext(),
+  app: getDefaultAppContext({
+    indexerRelays: ['wss://relay.damus.io/', 'wss://nos.lol/', 'wss://purplepag.es/'],
+  }),
 })
 
 process.on('unhandledRejection', (error: Error) => {
