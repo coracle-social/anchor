@@ -29,11 +29,12 @@ export type DigestData = {
 
 export async function fetchData({ cron, relays, filters }: AlertParams) {
   const getCronDate = parseCronString(cron)
-  const since = 1740598594//dateToSeconds(getCronDate(-1))
+  const since = dateToSeconds(getCronDate(-1))
 
-  // Remove this
-  filters = [{ kinds: [1] }]
-  relays = ['wss://pyramid.fiatjaf.com/']
+  // Testing code
+  // since = 1740598594
+  // filters = [{ kinds: [1] }]
+  // relays = ['wss://pyramid.fiatjaf.com/']
 
   const events = await load({ relays, filters: filters.map(assoc('since', since)) })
 
@@ -102,16 +103,6 @@ export async function buildParameters(data: DigestData, handler: string) {
   const popular = sortBy(e => -(repliesByParentId.get(e.id)?.length || 0), latest.slice(3))
   const topProfiles = sortBy(([k, ev]) => -ev.length, Array.from(eventsByPubkey.entries()))
 
-  console.log({
-    Total: total,
-    Duration: displayDuration(now() - since),
-    Latest: latest.slice(0, 5).map((e) => getEventVariables(e)),
-    HasLatest: latest.length > 0,
-    Popular: popular.slice(0, 5).map((e) => getEventVariables(e)),
-    HasPopular: popular.length > 0,
-    TopProfiles: displayList(topProfiles.map(([pk]) => displayProfileByPubkey(pk))),
-  })
-
   return {
     Total: total,
     Duration: displayDuration(now() - since),
@@ -124,7 +115,6 @@ export async function buildParameters(data: DigestData, handler: string) {
 }
 
 export async function loadHandler({ handlers }: AlertParams) {
-  console.log(handlers)
   const webHandlers = handlers.filter(nthEq(3, 'web'))
   const filters = getIdFilters(webHandlers.map(nth(1)))
   const relays = webHandlers.map(nth(2))
