@@ -4,7 +4,9 @@
     <mj-style inline="inline">
       .header { font-size: 24px; font-weight: bold; }
       .subheader { font-size: 16px; color: #555; }
-      .event-item { margin-bottom: 10px; }
+      .event-item { margin-bottom: 20px; border-left: 3px solid #F45E43; padding-left: 10px; }
+      .event-meta { color: #777; font-size: 12px; }
+      .section-header { font-size: 18px; font-weight: bold; margin-top: 15px; }
     </mj-style>
   </mj-head>
   <mj-body>
@@ -12,16 +14,36 @@
       <mj-column>
         <mj-text css-class="header">Hello {{name}},</mj-text>
         <mj-text css-class="subheader">
-          You have received {{eventCount}} new events.
+          You have received {{Total}} new events from {{TopProfiles}}.
         </mj-text>
         <mj-divider border-color="#cccccc" />
-        <mj-text font-size="14px" line-height="1.5">
-          {{#events}}
-            <div class="event-item">
-              <p>{{content}}</p>
-            </div>
-          {{/events}}
+
+        {{#HasLatest}}
+        <mj-text css-class="section-header">Latest Posts</mj-text>
+        {{#Latest}}
+        <mj-text>
+          <div class="event-item">
+            <div class="event-meta">{{Timestamp}} by {{Profile}}</div>
+            <div>{{{Content}}}</div>
+          </div>
         </mj-text>
+        {{/Latest}}
+        <mj-divider border-color="#cccccc" />
+        {{/HasLatest}}
+
+        {{#HasPopular}}
+        <mj-text css-class="section-header">Most Popular</mj-text>
+        {{#Popular}}
+        <mj-text>
+          <div class="event-item">
+            <div class="event-meta">{{Timestamp}} by {{Profile}}</div>
+            <div>{{{Content}}}</div>
+          </div>
+        </mj-text>
+        {{/Popular}}
+        <mj-divider border-color="#cccccc" />
+        {{/HasPopular}}
+
         <mj-button background-color="#F45E43" color="#ffffff" href="{{unsubscribeUrl}}">
           Unsubscribe
         </mj-button>

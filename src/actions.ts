@@ -14,16 +14,13 @@ export class ActionError extends Error {
 
 export type AddAlertParams = Pick<Alert, 'event' | 'tags'>
 
-export const addAlert = instrument(
-  'actions.addAlert',
-  async ({ event, tags }: AddAlertParams) => {
-    const alert = await db.insertAlert(event, tags)
+export const addAlert = instrument('actions.addAlert', async ({ event, tags }: AddAlertParams) => {
+  const alert = await db.insertAlert(event, tags)
 
-    if (alert.email.includes('@')) {
-      await mailer.sendConfirm(alert)
-    }
+  if (alert.email.includes('@')) {
+    await mailer.sendConfirm(alert)
   }
-)
+})
 
 export type ConfirmAlertParams = Pick<Alert, 'token'>
 

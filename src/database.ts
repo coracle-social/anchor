@@ -78,7 +78,7 @@ export const migrate = () =>
 
 const parseAlert = (row: any): Alert | undefined => {
   if (row) {
-    return {...row, event: JSON.parse(row.event), tags: JSON.parse(row.tags)}
+    return { ...row, event: JSON.parse(row.event), tags: JSON.parse(row.tags) }
   }
 }
 
@@ -120,26 +120,23 @@ export const confirmAlert = instrument('database.confirmAlert', async (token: st
   )
 })
 
-export const unsubscribeAlert = instrument(
-  'database.unsubscribeAlert',
-  async (token: string) => {
-    return parseAlert(
-      await get<Alert>(
-        `UPDATE alerts SET unsubscribed_at = unixepoch() WHERE token = ? RETURNING *`,
-        [token]
-      )
+export const unsubscribeAlert = instrument('database.unsubscribeAlert', async (token: string) => {
+  return parseAlert(
+    await get<Alert>(
+      `UPDATE alerts SET unsubscribed_at = unixepoch() WHERE token = ? RETURNING *`,
+      [token]
     )
-  }
-)
+  )
+})
 
 export const deleteAlert = instrument(
   'database.deleteAlert',
   async (address: string, deleted_at: number) => {
     return parseAlert(
-      await get(
-        `UPDATE alerts SET deleted_at = ? WHERE address = ? RETURNING *`,
-        [deleted_at, address]
-      )
+      await get(`UPDATE alerts SET deleted_at = ? WHERE address = ? RETURNING *`, [
+        deleted_at,
+        address,
+      ])
     )
   }
 )
@@ -155,9 +152,7 @@ export const getActiveAlerts = instrument('database.getActiveAlerts', async () =
 })
 
 export const getAlert = instrument('database.getAlert', async (address: string) => {
-  return parseAlert(
-    await get(`SELECT * FROM alerts WHERE address = ?`, [address])
-  )
+  return parseAlert(await get(`SELECT * FROM alerts WHERE address = ?`, [address]))
 })
 
 export const getAlertsForPubkey = instrument(

@@ -73,9 +73,9 @@ addRoute('get', '/confirm', async (req: Request, res: Response) => {
     res.send(await render('pages/confirm-success.html'))
   } catch (error) {
     const isActionError = error instanceof ActionError
-    const message = isActionError ? String(error) : "Oops, something went wrong on our end!"
+    const message = isActionError ? String(error) : 'Oops, something went wrong on our end!'
 
-    res.send(await render('pages/confirm-error.html', {message}))
+    res.send(await render('pages/confirm-error.html', { message }))
 
     if (!isActionError) {
       throw error

@@ -34,7 +34,11 @@ export const sendConfirm = ({ email, token }: Alert) => {
   })
 }
 
-export const sendDigest = async ({ email, token }: Alert, template: string, variables: Record<string, any>) => {
+export const sendDigest = async (
+  { email, token }: Alert,
+  template: string,
+  variables: Record<string, any>
+) => {
   return send({
     from: `${ANCHOR_NAME} <noreply@${MAILGUN_DOMAIN}>`,
     to: email,

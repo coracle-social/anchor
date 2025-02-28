@@ -53,13 +53,7 @@ export const getAlertParams = (alert: Alert): AlertParams => {
   }
 }
 
-export const getAlertError = async ({
-  channel,
-  cron,
-  relays,
-  filters,
-  email,
-}: AlertParams) => {
+export const getAlertError = async ({ channel, cron, relays, filters, email }: AlertParams) => {
   if (channel !== Channel.Email) return 'Only email notifications are currently supported.'
   if (!cron) return 'Immediate notifications are not currently supported.'
 
