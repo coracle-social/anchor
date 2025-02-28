@@ -2,9 +2,8 @@
   "name": "anchor",
   "type": "module",
   "scripts": {
-    "build": "tsc && npm run build:html && npm run build:mjml",
-    "build:html": "cp -r src/pages dist/",
-    "build:mjml": "mkdir -p dist/emails && mjml src/emails/*.mjml -o dist/emails/",
+    "build": "tsc && npm run build:html",
+    "build:html": "cp -r src/pages dist/ && cp -r src/emails dist/",
     "lint": "eslint src",
     "format": "prettier --write \"src/**/*.{ts,js,json,html}\"",
     "start": "node dist/index.js"
@@ -12,6 +11,7 @@
   "devDependencies": {
     "@eslint/js": "^9.15.0",
     "@types/express-ws": "^3.0.5",
+    "@types/mjml": "^4.7.4",
     "@types/mustache": "^4.2.5",
     "@types/sanitize-html": "^2.13.0",
     "@typescript-eslint/eslint-plugin": "^8.24.1",
@@ -40,7 +40,7 @@
     "mailgun.js": "^11.1.0",
     "mjml": "^4.15.1",
     "mustache": "^4.2.0",
-    "nostr-tools": "^2.10.3",
+    "nostr-tools": "^2.10.4",
     "sanitize-html": "^2.14.0",
     "sqlite3": "^5.1.7",
     "succinct-async": "^1.0.4",

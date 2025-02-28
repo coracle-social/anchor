@@ -1,4 +1,5 @@
-import { max, sortBy, concat, groupBy, indexBy, assoc, uniq, nth, nthEq } from '@welshman/lib'
+import {neventEncode, decode} from 'nostr-tools/nip19'
+import { max, now, sortBy, concat, groupBy, indexBy, assoc, uniq, nth, nthEq } from '@welshman/lib'
 import { parse, truncate, renderAsHtml } from '@welshman/content'
 import {
   SignedEvent,
@@ -6,17 +7,21 @@ import {
   Profile,
   getIdFilters,
   getReplyFilters,
+  getTagValues,
   NOTE,
   COMMENT,
+  REACTION,
 } from '@welshman/util'
 import { loadProfile, formatTimestamp, dateToSeconds, displayProfileByPubkey } from '@welshman/app'
-import { parseCronString, displayList, createElement, load, removeUndefined } from './util.js'
+import { parseCronString, displayList, displayDuration, createElement, load, removeUndefined } from './util.js'
 import { getAlertParams, Alert, AlertParams } from './alert.js'
 import { sendDigest } from './mailgun.js'
 
 export const DEFAULT_HANDLER = 'https://coracle.social/'
 
 export type DigestData = {
+  since: number
+  relays: string[]
   events: SignedEvent[]
   context: SignedEvent[]
   profilesByPubkey: Map<string, Profile>
@@ -36,26 +41,58 @@ export async function fetchData({ cron, relays, filters }: AlertParams) {
     return
   }
 
-  const pubkeys = uniq(events.map((e) => e.pubkey))
-  const replyFilters = getReplyFilters(events, { kinds: [NOTE, COMMENT] })
+  const pubkeys = uniq(events.flatMap((e) => [e.pubkey, ...getTagValues('p', e.tags)]))
+  const replyFilters = getReplyFilters(events, { kinds: [NOTE, COMMENT, REACTION] })
   const context = concat(events, await load({ relays, filters: replyFilters }))
   const profiles = await Promise.all(pubkeys.map((pubkey) => loadProfile(pubkey)))
   const profilesByPubkey = indexBy((p) => p.event.pubkey, removeUndefined(profiles))
 
-  return { events, context, profilesByPubkey } as DigestData
+  return { since, relays, events, context, profilesByPubkey } as DigestData
 }
 
-export async function buildParameters({ events, context, profilesByPubkey }: DigestData) {
-  const getEventVariables = (event: SignedEvent) => {
-    const parsed = truncate(parse(event), { minLength: 50, maxLength: 200, mediaLength: 50 })
+export async function buildParameters(data: DigestData, handler: string) {
+  const buildLink = (event: SignedEvent) => {
+    const nevent = neventEncode({...event, relays})
 
-    return {
-      Timestamp: formatTimestamp(event.created_at),
-      Profile: displayProfileByPubkey(event.pubkey),
-      Content: renderAsHtml(parsed, { createElement }).toString(),
+    if (handler.includes('<bech32>')) {
+      return handler.replace('<bech32>', nevent)
+    } else {
+      return handler + nevent
     }
   }
 
+  const renderEntity = (entity: string) => {
+    let display = entity.slice(0, 16) + "…"
+
+    try {
+      const {type, data} = decode(entity)
+
+      if (type === 'npub') {
+        display = '@' + displayProfileByPubkey(data)
+      }
+
+      if (type === 'nprofile') {
+        display = '@' + displayProfileByPubkey(data.pubkey)
+      }
+    } catch (e) {
+      // Pass
+    }
+
+    return display
+  }
+
+  const getEventVariables = (event: SignedEvent) => {
+    const parsed = truncate(parse(event), { minLength: 50, maxLength: 400, mediaLength: 50 })
+
+    return {
+      Link: buildLink(event),
+      Timestamp: formatTimestamp(event.created_at),
+      Profile: displayProfileByPubkey(event.pubkey),
+      Content: renderAsHtml(parsed, { createElement, renderEntity }).toString(),
+    }
+  }
+
+  const { since, relays, events, context, profilesByPubkey } = data
   const repliesByParentId = groupBy(getParentId, context)
   const eventsWithProfile = events.filter((e) => profilesByPubkey.has(e.pubkey))
   const latest = sortBy((e) => -e.created_at, eventsWithProfile)
@@ -65,17 +102,29 @@ export async function buildParameters({ events, context, profilesByPubkey }: Dig
   const popular = sortBy(e => -(repliesByParentId.get(e.id)?.length || 0), latest.slice(3))
   const topProfiles = sortBy(([k, ev]) => -ev.length, Array.from(eventsByPubkey.entries()))
 
+  console.log({
+    Total: total,
+    Duration: displayDuration(now() - since),
+    Latest: latest.slice(0, 5).map((e) => getEventVariables(e)),
+    HasLatest: latest.length > 0,
+    Popular: popular.slice(0, 5).map((e) => getEventVariables(e)),
+    HasPopular: popular.length > 0,
+    TopProfiles: displayList(topProfiles.map(([pk]) => displayProfileByPubkey(pk))),
+  })
+
   return {
     Total: total,
-    Latest: latest.slice(0, 3).map((e) => getEventVariables(e)),
+    Duration: displayDuration(now() - since),
+    Latest: latest.slice(0, 5).map((e) => getEventVariables(e)),
     HasLatest: latest.length > 0,
-    Popular: popular.slice(0, 3).map((e) => getEventVariables(e)),
+    Popular: popular.slice(0, 5).map((e) => getEventVariables(e)),
     HasPopular: popular.length > 0,
     TopProfiles: displayList(topProfiles.map(([pk]) => displayProfileByPubkey(pk))),
   }
 }
 
 export async function loadHandler({ handlers }: AlertParams) {
+  console.log(handlers)
   const webHandlers = handlers.filter(nthEq(3, 'web'))
   const filters = getIdFilters(webHandlers.map(nth(1)))
   const relays = webHandlers.map(nth(2))
@@ -96,9 +145,10 @@ export async function send(alert: Alert) {
   const data = await fetchData(params)
 
   if (data) {
-    const [variables, handler] = await Promise.all([buildParameters(data), loadHandler(params)])
+    const handler = await loadHandler(params)
+    const variables = await buildParameters(data, handler)
 
-    await sendDigest(alert, handler, variables)
+    await sendDigest(alert, variables)
   }
 
   return Boolean(data)

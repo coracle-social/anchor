@@ -39,6 +39,37 @@ export function parseCronString(cronString: string): (n: number) => Date {
   }
 }
 
+export function displayDuration(seconds: number) {
+  const minute = 60
+  const hour = minute * 60
+  const day = hour * 24
+  const week = day * 7
+  const month = day * 30
+  const year = day * 365
+
+  if (seconds < minute) {
+    return `${Math.round(seconds)} seconds`
+  } else if (seconds < hour) {
+    const minutes = Math.round(seconds / minute)
+    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+  } else if (seconds < day) {
+    const hours = Math.round(seconds / hour)
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
+  } else if (seconds < week) {
+    const days = Math.round(seconds / day)
+    return `${days} ${days === 1 ? 'day' : 'days'}`
+  } else if (seconds < month) {
+    const weeks = Math.round(seconds / week)
+    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'}`
+  } else if (seconds < year) {
+    const months = Math.round(seconds / month)
+    return `${months} ${months === 1 ? 'month' : 'months'}`
+  } else {
+    const years = Math.round(seconds / year)
+    return `${years} ${years === 1 ? 'year' : 'years'}`
+  }
+}
+
 interface ElementAttributes {
   [key: string]: string
 }
@@ -58,17 +89,18 @@ export interface CustomElement {
   href: string
   target: string
   innerText: string
+  innerHTML: string
   outerHTML: string
 }
 
-export function createElement(tagName: string): CustomElement {
+export function createElement(tagName: string) {
   const element: CustomElement = {
     tagName: tagName.toLowerCase(),
     attributes: {},
     children: [],
     _innerText: '',
 
-    setAttribute(name: string, value: string): void {
+    setAttribute(name: string, value: string) {
       this.attributes[name] = value
     },
 
@@ -76,11 +108,11 @@ export function createElement(tagName: string): CustomElement {
       return this.attributes[name]
     },
 
-    appendChild(child: ElementChild): void {
+    appendChild(child: ElementChild) {
       this.children.push(child)
     },
 
-    get href(): string {
+    get href() {
       return this.attributes.href || ''
     },
 
@@ -88,7 +120,7 @@ export function createElement(tagName: string): CustomElement {
       this.attributes.href = value
     },
 
-    get target(): string {
+    get target() {
       return this.attributes.target || ''
     },
 
@@ -96,7 +128,7 @@ export function createElement(tagName: string): CustomElement {
       this.attributes.target = value
     },
 
-    get innerText(): string {
+    get innerText() {
       return this._innerText
     },
 
@@ -107,7 +139,15 @@ export function createElement(tagName: string): CustomElement {
       })
     },
 
-    get outerHTML(): string {
+    get innerHTML() {
+      return this._innerText
+    },
+
+    set innerHTML(value: string) {
+      this._innerText = value
+    },
+
+    get outerHTML() {
       const attributesString = Object.entries(this.attributes)
         .map(([key, value]) => `${key}="${value}"`)
         .join(' ')

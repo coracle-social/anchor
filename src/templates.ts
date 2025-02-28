@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import Mustache from 'mustache'
+import mjml2html from 'mjml'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,5 +21,15 @@ const loadTemplate = async (name: string) => {
   return templateCache.get(name)!
 }
 
-export const render = async (name: string, view: Record<string, any> = {}) =>
-  Mustache.render(await loadTemplate(name), view)
+export const render = async (name: string, view: Record<string, any> = {}) => {
+  const template = await loadTemplate(name)
+  const mustacheRendered = Mustache.render(template, view)
+  
+  // If it's an MJML file, render it with MJML
+  if (name.endsWith('.mjml')) {
+    const { html } = mjml2html(mustacheRendered)
+    return html
+  }
+  
+  return mustacheRendered
+}

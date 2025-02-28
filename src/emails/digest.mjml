@@ -1,12 +1,14 @@
 <mjml>
   <mj-head>
-    <mj-title>Digest Email</mj-title>
+    <mj-title>New Activity</mj-title>
     <mj-style inline="inline">
       .header { font-size: 24px; font-weight: bold; }
       .subheader { font-size: 16px; color: #555; }
       .event-item { margin-bottom: 20px; border-left: 3px solid #F45E43; padding-left: 10px; }
       .event-meta { color: #777; font-size: 12px; }
       .section-header { font-size: 18px; font-weight: bold; margin-top: 15px; }
+      .event-link { margin-top: 8px; font-size: 14px; }
+      a { text-decoration: none; }
     </mj-style>
   </mj-head>
   <mj-body>
@@ -14,22 +16,10 @@
       <mj-column>
         <mj-text css-class="header">Hello {{name}},</mj-text>
         <mj-text css-class="subheader">
-          You have received {{Total}} new events from {{TopProfiles}}.
+          Below is a summary of activity over the last {{Duration}}.
+          We found {{Total}} new posts from {{TopProfiles}}.
         </mj-text>
         <mj-divider border-color="#cccccc" />
-
-        {{#HasLatest}}
-        <mj-text css-class="section-header">Latest Posts</mj-text>
-        {{#Latest}}
-        <mj-text>
-          <div class="event-item">
-            <div class="event-meta">{{Timestamp}} by {{Profile}}</div>
-            <div>{{{Content}}}</div>
-          </div>
-        </mj-text>
-        {{/Latest}}
-        <mj-divider border-color="#cccccc" />
-        {{/HasLatest}}
 
         {{#HasPopular}}
         <mj-text css-class="section-header">Most Popular</mj-text>
@@ -38,11 +28,35 @@
           <div class="event-item">
             <div class="event-meta">{{Timestamp}} by {{Profile}}</div>
             <div>{{{Content}}}</div>
+            <div class="event-link">
+              <a href="{{Link}}">View post</a>
+            </div>
           </div>
         </mj-text>
         {{/Popular}}
         <mj-divider border-color="#cccccc" />
         {{/HasPopular}}
+
+        {{#HasLatest}}
+        <mj-text css-class="section-header">Latest</mj-text>
+        {{#Latest}}
+        <mj-text>
+          <div class="event-item">
+            <div class="event-meta">{{Timestamp}} by {{Profile}}</div>
+            <div>{{{Content}}}</div>
+            <div class="event-link">
+              <a href="{{Link}}">View post</a>
+            </div>
+          </div>
+        </mj-text>
+        {{/Latest}}
+        <mj-divider border-color="#cccccc" />
+        {{/HasLatest}}
+
+        <mj-text>
+          You're receiving this email because you subscribed to notifications.
+          We'll continue to send you updates based on your subscription preferences.
+        </mj-text>
 
         <mj-button background-color="#F45E43" color="#ffffff" href="{{unsubscribeUrl}}">
           Unsubscribe

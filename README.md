@@ -35,3 +35,4 @@ echo $status
 
 - [ ] Serve deletes
 - [ ] Add timezone and locale
+- [ ] Use handlers correctly
