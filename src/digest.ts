@@ -13,7 +13,7 @@ import {
   REACTION,
 } from '@welshman/util'
 import { loadProfile, formatTimestamp, dateToSeconds, displayProfileByPubkey } from '@welshman/app'
-import { parseCronString, displayList, displayDuration, createElement, load, removeUndefined } from './util.js'
+import { getCronDate, displayList, displayDuration, createElement, load, removeUndefined } from './util.js'
 import { getAlertParams, Alert, AlertParams } from './alert.js'
 import { sendDigest } from './mailgun.js'
 
@@ -28,11 +28,10 @@ export type DigestData = {
 }
 
 export async function fetchData({ cron, relays, filters }: AlertParams) {
-  const getCronDate = parseCronString(cron)
-  const since = dateToSeconds(getCronDate(-1))
+  const since = dateToSeconds(getCronDate(cron, -2))
 
   // Testing code
-  // since = 1740598594
+  // const since = 1740598594
   // filters = [{ kinds: [1] }]
   // relays = ['wss://pyramid.fiatjaf.com/']
 
@@ -95,8 +94,7 @@ export async function buildParameters(data: DigestData, handler: string) {
 
   const { since, relays, events, context, profilesByPubkey } = data
   const repliesByParentId = groupBy(getParentId, context)
-  const eventsWithProfile = events.filter((e) => profilesByPubkey.has(e.pubkey))
-  const latest = sortBy((e) => -e.created_at, eventsWithProfile)
+  const latest = sortBy((e) => -e.created_at, events)
   const eventsByPubkey = groupBy((e) => e.pubkey, latest)
   const total = events.length > 100 ? `{$events.length}+` : events.length
   const totalProfiles = eventsByPubkey.size

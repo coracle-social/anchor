@@ -16,27 +16,21 @@ export function load(request: SubscribeRequestWithHandlers) {
   })
 }
 
-export function parseCronString(cronString: string): (n: number) => Date {
+export function getCronDate(cronString: string, n: number) {
   const interval = CronExpressionParser.parse(cronString, { tz: 'UTC' })
+  const now = new Date()
 
-  return (n: number): Date => {
-    const now = new Date()
-    let date: Date
+  let date = interval.next().toDate()
 
-    if (n >= 0) {
-      date = interval.prev().toDate()
-      for (let i = 0; i <= n; i++) {
-        date = interval.next().toDate()
-      }
-    } else {
+  for (let i = 0; i < Math.abs(n); i++) {
+    if (n > 0) {
       date = interval.next().toDate()
-      for (let i = 0; i < Math.abs(n); i++) {
-        date = interval.prev().toDate()
-      }
+    } else {
+      date = interval.prev().toDate()
     }
-
-    return date
   }
+
+  return date
 }
 
 export function displayDuration(seconds: number) {

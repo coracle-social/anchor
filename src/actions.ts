@@ -20,6 +20,8 @@ export const addAlert = instrument('actions.addAlert', async ({ event, tags }: A
   if (alert.email.includes('@')) {
     await mailer.sendConfirm(alert)
   }
+
+  return alert
 })
 
 export type ConfirmAlertParams = Pick<Alert, 'token'>

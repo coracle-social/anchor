@@ -26,6 +26,7 @@ type RelayMessage = [string, ...any[]]
 export class Connection {
   private _socket: WebSocket
   private _request: Request
+  private _subs = new Map<string, Filter[]>()
 
   auth: AuthState = {
     challenge: randomId(),
@@ -106,10 +107,13 @@ export class Connection {
       return this.send(['CLOSED', id, `auth-required: alerts are protected`])
     }
 
+    this._subs.set(id, filters)
+
     const userPubkey = this.auth.event.pubkey
     const alerts = await getAlertsForPubkey(userPubkey)
-    const alertEvents = pluck<SignedEvent>('event', alerts)
-    const statusEvents = await Promise.all(alerts.map(createStatusEvent))
+    const activeAlerts = alerts.filter(alert => !alert.deleted_at)
+    const alertEvents = pluck<SignedEvent>('event', activeAlerts)
+    const statusEvents = await Promise.all(activeAlerts.map(createStatusEvent))
 
     for (const event of [...alertEvents, ...statusEvents]) {
       if (matchFilters(filters, event)) {
@@ -120,13 +124,17 @@ export class Connection {
     this.send(['EOSE', id])
   }
 
-  async onCLOSE() {
-    // pass
+  async onCLOSE(id: string) {
+    this._subs.delete(id)
   }
 
   async onEVENT(event: SignedEvent) {
     if (!hasValidSignature(event)) {
       return this.send(['OK', event.id, false, 'Invalid signature'])
+    }
+
+    if (event.pubkey !== this.auth.event?.pubkey) {
+      return this.send(['OK', event.id, false, 'Event not authorized'])
     }
 
     try {
@@ -156,9 +164,9 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Event must p-tag this relay'])
     }
 
-    const alert = await getAlert(getAddress(event))
+    const duplicate = await getAlert(getAddress(event))
 
-    if (gt(alert?.deleted_at, event.created_at)) {
+    if (gt(duplicate?.deleted_at, event.created_at)) {
       return this.send(['OK', event.id, false, 'Alert has been deleted'])
     }
 
@@ -175,8 +183,16 @@ export class Connection {
       return this.send(['OK', event.id, false, 'Encrypted tags are not an array'])
     }
 
-    await addAlert({ event, tags })
+    const alert = await addAlert({ event, tags })
 
     this.send(['OK', event.id, true, ''])
+
+    for (const [id, filters] of this._subs) {
+      for (const event of [alert.event, await createStatusEvent(alert)]) {
+        if (matchFilters(filters, event)) {
+          this.send(['EVENT', id, event])
+        }
+      }
+    }
   }
 }

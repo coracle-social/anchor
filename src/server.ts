@@ -9,15 +9,6 @@ import { render } from './templates.js'
 import { Connection } from './relay.js'
 import { confirmAlert, unsubscribe, ActionError } from './actions.js'
 
-// Utils
-
-const _err = (res: Response, status: number, error: string) => {
-  res.status(status).send({ error })
-}
-
-const _ok = (res: Response, status = 200) => {
-  res.status(status).send({ ok: true })
-}
 
 // Endpoints
 
@@ -101,11 +92,15 @@ server.ws('/', (socket: WebSocket, request: Request) => {
   socket.on('close', () => connection.cleanup())
 })
 
-server.use((err: Error, req: Request, res: Response) => {
-  if (err instanceof ActionError) {
-    return _err(res, 400, err.message)
+server.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  if (err) {
+    if (err instanceof ActionError) {
+      res.status(400).send({error: err.message})
+    } else {
+      console.log('Unhandled error', err)
+      res.status(500).send({error: 'Internal server error'})
+    }
+  } else {
+    next()
   }
-
-  console.error('Unhandled error:', err.stack)
-  _err(res, 500, 'Internal server error')
 })
