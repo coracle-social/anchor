@@ -9,7 +9,7 @@ import {
   matchFilters,
   getTagValue,
   getTagValues,
-  hasValidSignature,
+  verifyEvent,
 } from '@welshman/util'
 import { appSigner, NOTIFIER_SUBSCRIPTION } from './env.js'
 import { getAlertsForPubkey, getAlert } from './database.js'
@@ -77,7 +77,7 @@ export class Connection {
   }
 
   async onAUTH(event: SignedEvent) {
-    if (!hasValidSignature(event)) {
+    if (!verifyEvent(event)) {
       return this.send(['OK', event.id, false, 'invalid signature'])
     }
 
@@ -129,7 +129,7 @@ export class Connection {
   }
 
   async onEVENT(event: SignedEvent) {
-    if (!hasValidSignature(event)) {
+    if (!verifyEvent(event)) {
       return this.send(['OK', event.id, false, 'Invalid signature'])
     }
 

@@ -1,8 +1,8 @@
 import {neventEncode, decode} from 'nostr-tools/nip19'
-import { max, now, sortBy, concat, groupBy, indexBy, assoc, uniq, nth, nthEq } from '@welshman/lib'
+import { max, now, sortBy, concat, groupBy, indexBy, assoc, uniq, nth, nthEq, formatTimestamp, dateToSeconds } from '@welshman/lib'
 import { parse, truncate, renderAsHtml } from '@welshman/content'
 import {
-  SignedEvent,
+  TrustedEvent,
   getParentId,
   Profile,
   getIdFilters,
@@ -11,9 +11,11 @@ import {
   NOTE,
   COMMENT,
   REACTION,
+  displayProfile,
+  displayPubkey,
 } from '@welshman/util'
-import { loadProfile, formatTimestamp, dateToSeconds, displayProfileByPubkey } from '@welshman/app'
-import { getCronDate, displayList, displayDuration, createElement, load, removeUndefined } from './util.js'
+import { load } from '@welshman/net'
+import { getCronDate, loadProfile, displayList, displayDuration, createElement, removeUndefined } from './util.js'
 import { getAlertParams, Alert, AlertParams } from './alert.js'
 import { sendDigest } from './mailgun.js'
 
@@ -22,8 +24,8 @@ export const DEFAULT_HANDLER = 'https://coracle.social/'
 export type DigestData = {
   since: number
   relays: string[]
-  events: SignedEvent[]
-  context: SignedEvent[]
+  events: TrustedEvent[]
+  context: TrustedEvent[]
   profilesByPubkey: Map<string, Profile>
 }
 
@@ -51,7 +53,7 @@ export async function fetchData({ cron, relays, filters }: AlertParams) {
 }
 
 export async function buildParameters(data: DigestData, handler: string) {
-  const buildLink = (event: SignedEvent) => {
+  const buildLink = (event: TrustedEvent) => {
     const nevent = neventEncode({...event, relays})
 
     if (handler.includes('<bech32>')) {
@@ -60,6 +62,9 @@ export async function buildParameters(data: DigestData, handler: string) {
       return handler + nevent
     }
   }
+
+  const displayProfileByPubkey = (pubkey: string) =>
+    displayProfile(profilesByPubkey.get(pubkey), displayPubkey(pubkey))
 
   const renderEntity = (entity: string) => {
     let display = entity.slice(0, 16) + "…"
@@ -81,7 +86,7 @@ export async function buildParameters(data: DigestData, handler: string) {
     return display
   }
 
-  const getEventVariables = (event: SignedEvent) => {
+  const getEventVariables = (event: TrustedEvent) => {
     const parsed = truncate(parse(event), { minLength: 50, maxLength: 400, mediaLength: 50 })
 
     return {
@@ -122,7 +127,7 @@ export async function loadHandler({ handlers }: AlertParams) {
   }
 
   const events = await load({ relays, filters })
-  const getTemplates = (e: SignedEvent) => e.tags.filter(nthEq(0, 'web')).map(nth(1))
+  const getTemplates = (e: TrustedEvent) => e.tags.filter(nthEq(0, 'web')).map(nth(1))
   const templates = events.flatMap((e) => getTemplates(e))
 
   return templates[0] || DEFAULT_HANDLER

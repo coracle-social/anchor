@@ -1,20 +1,10 @@
 import sanitizeHtml from 'sanitize-html'
-import { remove } from '@welshman/lib'
-import { subscribe, SubscriptionEvent, SubscribeRequestWithHandlers } from '@welshman/net'
-import { SignedEvent } from '@welshman/util'
+import { remove, cached, uniq, indexBy, nth, batcher } from '@welshman/lib'
+import { SignedEvent, PROFILE, readProfile } from '@welshman/util'
+import { load } from '@welshman/net'
 import { CronExpressionParser } from 'cron-parser'
 
 export const removeUndefined = <T>(xs: (T | undefined)[]) => remove(undefined, xs) as T[]
-
-export function load(request: SubscribeRequestWithHandlers) {
-  return new Promise<SignedEvent[]>((resolve) => {
-    const sub = subscribe({ closeOnEose: true, timeout: 10_000, ...request })
-    const events: SignedEvent[] = []
-
-    sub.on(SubscriptionEvent.Event, (url: string, e: SignedEvent) => events.push(e))
-    sub.on(SubscriptionEvent.Complete, () => resolve(events))
-  })
-}
 
 export function getCronDate(cronString: string, n: number) {
   const interval = CronExpressionParser.parse(cronString, { tz: 'UTC' })
@@ -167,3 +157,20 @@ export const displayList = <T>(xs: T[], conj = "and", n = 6) => {
 
   return `${stringItems.slice(0, -1).join(', ')}, ${conj} ${stringItems.slice(-1).join('')}`
 }
+
+export const fetchProfile = batcher(200, async (authors: string[]) => {
+  const events = await load({
+    relays: ["wss://relay.nostr.band/", "wss://purplepag.es/", "wss://relay.damus.io/"],
+    filters: [{kinds: [PROFILE], authors}],
+  })
+
+  const profilesByPubkey = indexBy(p => p.event.pubkey, events.map(readProfile))
+
+  return authors.map(pubkey => profilesByPubkey.get(pubkey))
+})
+
+export const loadProfile = cached({
+  maxSize: 5000,
+  getKey: ([pubkey]) => pubkey,
+  getValue: ([pubkey]) => fetchProfile(pubkey),
+})
