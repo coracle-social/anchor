@@ -2,7 +2,7 @@
   "name": "anchor",
   "type": "module",
   "scripts": {
-    "build": "tsc && npm run build:html",
+    "build": "tsc && pnpm run build:html",
     "build:html": "cp -r src/pages dist/ && cp -r src/emails dist/",
     "lint": "eslint src",
     "format": "prettier --write \"src/**/*.{ts,js,json,html}\"",
@@ -23,12 +23,11 @@
   },
   "dependencies": {
     "@types/node": "^22.13.4",
-    "@welshman/app": "^0.0.43",
-    "@welshman/content": "^0.1.1",
-    "@welshman/lib": "^0.1.0",
-    "@welshman/net": "^0.0.49",
-    "@welshman/signer": "^0.1.0",
-    "@welshman/util": "^0.1.0",
+    "@welshman/content": "^0.1.3",
+    "@welshman/lib": "^0.1.2",
+    "@welshman/net": "^0.1.2",
+    "@welshman/signer": "^0.1.4",
+    "@welshman/util": "^0.1.3",
     "bcrypt": "^5.1.1",
     "cron": "^4.0.0",
     "cron-parser": "^5.0.4",
@@ -46,5 +45,15 @@
     "succinct-async": "^1.0.4",
     "ts-node-dev": "^2.0.0",
     "ws": "^8.13.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@welshman/lib": "link:../welshman/packages/lib",
+      "@welshman/util": "link:../welshman/packages/util",
+      "@welshman/content": "link:../welshman/packages/content",
+      "@welshman/net": "link:../welshman/packages/net",
+      "@welshman/signer": "link:../welshman/packages/signer"
+    }
   }
+
 }
