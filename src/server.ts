@@ -35,16 +35,20 @@ const addRoute = (method: 'get' | 'post', path: string, handler: Handler) => {
   )
 }
 
-addRoute('get', '/', async (_req: Request, res: Response) => {
-  res.set({ 'Content-Type': 'application/nostr+json; charset=utf-8' })
+addRoute('get', '/', async (req: Request, res: Response) => {
+  if (req.get('Accept') !== 'application/nostr+json') {
+    res.send(await render('pages/alerts.html'))
+  } else {
+    res.set({ 'Content-Type': 'application/nostr+json; charset=utf-8' })
 
-  res.json({
-    name: 'Anchor',
-    icon: 'https://pfp.nostr.build/2644089e06a950889fa4aa81f6152a51fba23497735cbba351aa6972460df6f5.jpg',
-    description: 'A relay/notifier combo for email notifications',
-    pubkey: await appSigner.getPubkey(),
-    software: 'https://github.com/coracle-social/anchor',
-  })
+    res.json({
+      name: 'Anchor',
+      icon: 'https://pfp.nostr.build/2644089e06a950889fa4aa81f6152a51fba23497735cbba351aa6972460df6f5.jpg',
+      description: 'A relay/notifier combo for email notifications',
+      pubkey: await appSigner.getPubkey(),
+      software: 'https://github.com/coracle-social/anchor',
+    })
+  }
 })
 
 addRoute('get', '/confirm', async (req: Request, res: Response) => {
