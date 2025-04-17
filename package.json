@@ -2,7 +2,8 @@
   "name": "anchor",
   "type": "module",
   "scripts": {
-    "build": "tsc && pnpm run build:html",
+    "build": "tsc && pnpm run build:html && pnpm run build:web",
+    "build:web": "cd web && pnpm run build",
     "build:html": "cp -r src/pages dist/ && cp -r src/emails dist/",
     "lint": "eslint src",
     "format": "prettier --write \"src/**/*.{ts,js,json,html}\"",

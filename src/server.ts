@@ -9,7 +9,6 @@ import { render } from './templates.js'
 import { Connection } from './relay.js'
 import { confirmAlert, unsubscribe, ActionError } from './actions.js'
 
-
 // Endpoints
 
 export const server: Application = express() as unknown as Application
@@ -17,6 +16,8 @@ export const server: Application = express() as unknown as Application
 addWebsockets(server)
 
 server.use(express.json())
+
+server.use(express.static('web/dist'))
 
 server.use(rateLimit({ limit: 30, windowMs: 5 * 60 * 1000 }))
 
@@ -37,7 +38,7 @@ const addRoute = (method: 'get' | 'post', path: string, handler: Handler) => {
 
 addRoute('get', '/', async (req: Request, res: Response) => {
   if (req.get('Accept') !== 'application/nostr+json') {
-    res.send(await render('pages/alerts.html'))
+    res.send(await render('../web/dist/index.html'))
   } else {
     res.set({ 'Content-Type': 'application/nostr+json; charset=utf-8' })
 
