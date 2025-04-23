@@ -1,1 +1,42 @@
 @import "tailwindcss";
+
+a, button {
+  @apply cursor-pointer;
+}
+
+/* Tooltip styling */
+[title] {
+  @apply cursor-pointer relative;
+}
+
+[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  border-radius: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  
+  /* Animation properties */
+  opacity: 0;
+  animation: tooltipFadeIn 0.2s ease-in-out forwards;
+}
+
+/* Keyframes for fade in animation */
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-3px);
+  }
+}

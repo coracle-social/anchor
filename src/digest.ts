@@ -99,19 +99,20 @@ export async function buildParameters(data: DigestData, handler: string) {
 
   const { since, relays, events, context, profilesByPubkey } = data
   const repliesByParentId = groupBy(getParentId, context)
-  const latest = sortBy((e) => -e.created_at, events)
-  const eventsByPubkey = groupBy((e) => e.pubkey, latest)
+  const eventsByPubkey = groupBy((e) => e.pubkey, events)
   const total = events.length > 100 ? `{$events.length}+` : events.length
   const totalProfiles = eventsByPubkey.size
-  const popular = sortBy(e => -(repliesByParentId.get(e.id)?.length || 0), latest.slice(3))
+  const popular = sortBy(e => -(repliesByParentId.get(e.id)?.length || 0), events).slice(0, 5)
+  const popularIds = new Set(popular.map(e => e.id))
+  const latest = sortBy((e) => -e.created_at, popular.filter(e => !popularIds.has(e.id))).slice(0, 5)
   const topProfiles = sortBy(([k, ev]) => -ev.length, Array.from(eventsByPubkey.entries()))
 
   return {
     Total: total,
     Duration: displayDuration(now() - since),
-    Latest: latest.slice(0, 5).map((e) => getEventVariables(e)),
+    Latest: latest.map((e) => getEventVariables(e)),
     HasLatest: latest.length > 0,
-    Popular: popular.slice(0, 5).map((e) => getEventVariables(e)),
+    Popular: popular.map((e) => getEventVariables(e)),
     HasPopular: popular.length > 0,
     TopProfiles: displayList(topProfiles.map(([pk]) => displayProfileByPubkey(pk))),
   }
