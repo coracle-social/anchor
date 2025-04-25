@@ -7,36 +7,43 @@ import * as digest from './digest.js'
 
 const jobsByAddress = new Map()
 
+export const runJob = async (alert: Alert) => {
+  try {
+    const statusTags = await getStatusTags(alert)
+    const status = getTagValue('status', statusTags)
+    const message = getTagValue('message', statusTags)
+
+    if (status !== 'ok') {
+      console.log('worker: job skipped', alert.address, status, message)
+      return false
+    }
+
+    console.log('worker: job starting', alert.address)
+
+    const now = Date.now()
+
+    if (await digest.send(alert)) {
+      console.log('worker: job completed', alert.address, 'in', Date.now() - now, 'ms')
+      return true
+    } else {
+      console.log('worker: job skipped', alert.address, 'ok', 'no data received')
+      return false
+    }
+  } catch (e) {
+    console.log('worker: job failed', alert.address, e)
+    return false
+  }
+}
+
 const createJob = (alert: Alert) => {
-  const { cron }  = getAlertParams(alert)
+  const { cron } = getAlertParams(alert)
 
   const run = async () => {
-    try {
-      const statusTags = await getStatusTags(alert)
-      const status = getTagValue('status', statusTags)
-      const message = getTagValue('message', statusTags)
-
-      if (status !== 'ok') {
-        return console.log('worker: job skipped', alert.address, status, message)
-      }
-
-      console.log('worker: job starting', alert.address)
-
-      const now = Date.now()
-
-      if (await digest.send(alert)) {
-        console.log('worker: job completed', alert.address, 'in', Date.now() - now, 'ms')
-      } else {
-        console.log('worker: job skipped', alert.address, 'ok', 'no data received')
-      }
-    } catch (e) {
-      console.log('worker: job failed', alert.address, e)
-    }
+    await runJob(alert)
   }
 
   return CronJob.from({
     cronTime: cron,
-    // cronTime: '0,15,30,45 * * * * *',
     onTick: run,
     start: true,
     timeZone: 'UTC',

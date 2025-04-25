@@ -1,5 +1,5 @@
 import {neventEncode, decode} from 'nostr-tools/nip19'
-import { max, ago, HOUR, ms, MINUTE, int, removeNil, now, sortBy, concat, groupBy, displayList, indexBy, assoc, uniq, nth, nthEq, formatTimestamp, dateToSeconds } from '@welshman/lib'
+import { max, countBy, sleep, call, ago, HOUR, ms, MINUTE, int, removeNil, now, sortBy, concat, groupBy, displayList, indexBy, assoc, uniq, nth, nthEq, formatTimestamp, dateToSeconds } from '@welshman/lib'
 import { parse, truncate, renderAsHtml } from '@welshman/content'
 import {
   TrustedEvent,
@@ -23,7 +23,7 @@ import {
 } from '@welshman/util'
 import { load } from '@welshman/net'
 import { Repository } from '@welshman/relay'
-import { Router, addMaximalFallbacks } from '@welshman/router'
+import { Router, routerContext, makeSelection, addMaximalFallbacks } from '@welshman/router'
 import { deriveEventsMapped, collection } from '@welshman/store'
 import { makeIntersectionFeed, Feed, makeCreatedAtFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
 import { getCronDate, displayDuration, createElement } from './util.js'
@@ -54,12 +54,13 @@ export const {
   name: "relaySelections",
   store: relaySelections,
   getKey: relaySelections => relaySelections.event.pubkey,
-  load: (pubkey: string) =>
-    load({
+  load: (pubkey: string) => {
+    return load({
       relays: Router.get().Index().getUrls(),
       filters: [{kinds: [RELAYS], authors: [pubkey]}],
       onEvent: event => repository.publish(event),
-    }),
+    })
+  },
 })
 
 export const profiles = deriveEventsMapped<PublishedProfile>(repository, {
@@ -75,12 +76,15 @@ export const {
   name: "profiles",
   store: profiles,
   getKey: profile => profile.event.pubkey,
-  load: (pubkey: string) =>
-    load({
-      relays: Router.get().Index().getUrls(),
-      filters: [{kinds: [RELAYS], authors: [pubkey]}],
+  load: (pubkey: string) => {
+    const {merge, Index, FromPubkey} = Router.get()
+
+    return load({
+      relays: merge([Index(), FromPubkey(pubkey)]).getUrls(),
+      filters: [{kinds: [PROFILE], authors: [pubkey]}],
       onEvent: event => repository.publish(event),
-    }),
+    })
+  },
 })
 
 export const loadFeed = async (feed: Feed) => {
@@ -94,7 +98,12 @@ export const loadFeed = async (feed: Feed) => {
       events.push(e)
 
       for (const pubkey of uniq([e.pubkey, ...getTagValues('p', e.tags)])) {
-        promises.push(loadRelaySelections(pubkey).then(() => loadProfile(pubkey)))
+        promises.push(
+          call(async () => {
+            await loadRelaySelections(pubkey)
+            await loadProfile(pubkey)
+          })
+        )
       }
     },
   })
@@ -199,7 +208,7 @@ export const buildParameters = async (data: DigestData, handler: string) => {
   const { since, events, context } = data
   const repliesByParentId = groupBy(getParentId, context)
   const eventsByPubkey = groupBy((e) => e.pubkey, events)
-  const total = events.length > 100 ? `{$events.length}+` : events.length
+  const total = events.length > 100 ? `${events.length}+` : events.length
   const totalProfiles = eventsByPubkey.size
   const popular = sortBy(e => -(repliesByParentId.get(e.id)?.length || 0), events).slice(0, 5)
   const popularIds = new Set(popular.map(e => e.id))

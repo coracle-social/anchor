@@ -25,3 +25,7 @@ export const SEARCH_RELAYS = process.env.SEARCH_RELAYS.split(',').map(normalizeR
 export const PORT = process.env.PORT
 export const NOTIFIER_SUBSCRIPTION = 32830
 export const NOTIFIER_STATUS = 32831
+
+routerContext.getDefaultRelays = always(DEFAULT_RELAYS)
+routerContext.getIndexerRelays = always(INDEXER_RELAYS)
+routerContext.getSearchRelays = always(SEARCH_RELAYS)
