@@ -4,7 +4,6 @@ import addWebsockets, { Application } from 'express-ws'
 import rateLimit from 'express-rate-limit'
 import { WebSocket } from 'ws'
 import { appSigner } from './env.js'
-import { getError } from './schema.js'
 import { render } from './templates.js'
 import { Connection } from './relay.js'
 import { confirmAlert, unsubscribe, ActionError } from './actions.js'
@@ -53,9 +52,7 @@ addRoute('get', '/', async (req: Request, res: Response) => {
 })
 
 addRoute('get', '/confirm', async (req: Request, res: Response) => {
-  const error = getError({ token: 'str' }, req.query)
-
-  if (error) {
+  if (typeof req.query.token !== 'string') {
     return res.send(
       await render('pages/confirm-error.html', {
         message: 'No confirmation token was provided.',

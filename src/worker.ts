@@ -8,7 +8,7 @@ import * as digest from './digest.js'
 const jobsByAddress = new Map()
 
 const createJob = (alert: Alert) => {
-  const { cron, relays, filters, handlers, pause_until } = getAlertParams(alert)
+  const { cron }  = getAlertParams(alert)
 
   const run = async () => {
     try {

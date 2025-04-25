@@ -2,10 +2,11 @@ import './style.css'
 
 import m from "mithril"
 import {writable} from 'svelte/store'
-import {getJson, append, spec, parseJson, setJson, assoc, randomId, randomInt, TIMEZONE, replaceAt, removeAt} from '@welshman/lib'
+import {getJson, removeNil, append, spec, parseJson, setJson, assoc, randomId, randomInt, TIMEZONE, replaceAt, removeAt} from '@welshman/lib'
 import {withGetter} from '@welshman/store'
+import {validateFeed, validateAuthorFeed, ValidationError, walkFeed, displayFeeds, Feed} from '@welshman/feeds'
 import type {TrustedEvent, StampedEvent, Filter} from '@welshman/util'
-import {getAddress, normalizeRelayUrl, getTagValue, getTagValues, unionFilters, createEvent, DELETE} from '@welshman/util'
+import {getAddress, normalizeRelayUrl, getTagValue, getTagValues, createEvent, DELETE} from '@welshman/util'
 import type {Socket} from '@welshman/net'
 import {load, publish, defaultSocketPolicies, makeSocketPolicyAuth} from '@welshman/net'
 import type {ISigner} from '@welshman/signer'
@@ -79,10 +80,9 @@ type AlertStatus = {
 }
 
 type AlertValues = {
-  email: string
+  feeds: string[]
   cron: string
-  relays: string[]
-  filters: Filter[]
+  email: string
 }
 
 type State = {
@@ -178,15 +178,14 @@ const deleteAlert = async (alert: Alert) => {
 }
 
 export type AlertParams = {
+  feeds: string[]
   cron: string
   email: string
-  relays: string[]
-  filters: Filter[]
   bunker: string
   secret: string
 }
 
-export const makeAlert = async ({cron, email, relays, filters, bunker, secret}: AlertParams) => {
+export const makeAlert = async ({cron, email, feeds, bunker, secret}: AlertParams) => {
   const {signer} = state.get()
 
   const tags = [
@@ -201,12 +200,8 @@ export const makeAlert = async ({cron, email, relays, filters, bunker, secret}: 
     ],
   ]
 
-  for (const relay of relays) {
-    tags.push(["relay", relay])
-  }
-
-  for (const filter of unionFilters(filters)) {
-    tags.push(["filter", JSON.stringify(filter)])
+  for (const feed of feeds) {
+    tags.push(["feed", feed])
   }
 
   if (bunker) {
@@ -268,7 +263,7 @@ const AlertStatus: m.Component<{alert: Alert}> = {
       return status.replace('-', ' ').replace(/^(.)/, x => x.toUpperCase())
     }
 
-    return m("div", {class: getStatusClasses(), title: message}, getStatusDisplay())
+    return m("div", {class: getStatusClasses(), tooltip: message}, getStatusDisplay())
   },
 }
 
@@ -276,9 +271,10 @@ const AlertListItem: m.Component<{alert: Alert}> = {
   view: vnode => {
     const {alert} = vnode.attrs
     const cron = getTagValue('cron', alert.tags)
+    const feeds = getTagValues('feeds', alert.tags)
     const channel = getTagValue('channel', alert.tags)
-    const relays = getTagValues('relay', alert.tags)
-    const filters = getTagValues('filter', alert.tags)
+    const description = displayFeeds(feeds.map(feed => parseJson(feed))) || "[invalid feed]"
+    console.log(feeds)
 
     let frequency = cron || "Unknown"
     if (cron) {
@@ -293,14 +289,11 @@ const AlertListItem: m.Component<{alert: Alert}> = {
       m("button", {
         onclick: () => deleteAlert(alert),
         class: "mr-4 mt-1",
-        title: "Delete alert"
+        tooltip: "Delete alert"
       }, [m.trust(TRASH_ICON)]),
       m("div", { class: "space-y-2 flex-grow" }, [
-        m("div", { class: "text-gray-600" }, [
-          `${frequency} alert via ${channel} on `,
-          m("span", { class: "text-purple-600" }, displayList(relays))
-        ]),
-        m("div", { class: "text-sm text-gray-500" }, ["Filters: ", filters.join(', ')])
+        m("div", { class: "text-gray-600" }, `${frequency} alert via ${channel}`),
+        m("div", { class: "text-sm text-gray-500" }, description)
       ]),
       m(AlertStatus, {alert}),
     ])
@@ -341,31 +334,36 @@ const AlertCreate = {
     state.update(assoc('alertDraft', {
       email: getTagValue('email', state.get().alerts[0]?.tags || []) || "",
       cron: CRON_DAILY,
-      relays: [],
-      filters: []
+      feeds: [],
     }))
   },
   view: () => {
     const {alertDraft, alertsLoading} = state.get()
-    const {email, relays, filters, cron} = alertDraft!
+    const {email, feeds, cron} = alertDraft!
 
-    const update = (newValues: Partial<AlertValues>) =>
+    const update = (newValues: Partial<AlertValues>) => {
       state.update(assoc('alertDraft', {...alertDraft, ...newValues}))
+    }
 
     const submit = async (e: Event) => {
       e.preventDefault()
 
+      const parsedFeeds = removeNil(feeds.map(parseJson))
+      const feedError = parsedFeeds.map(validateFeed).find(e => e instanceof ValidationError)
+
       if (!email.includes("@")) {
         alert("Please provide a valid email address")
-      } else if (relays.length === 0) {
-        alert("Please add at least one relay")
-      } else if (filters.length === 0) {
-        alert("Please add at least one filter")
+      } else if (feeds.length === 0) {
+        alert("Please add at least one feed")
+      } else if (parsedFeeds.length < feeds.length) {
+        alert("At least on feed is invalid (must be valid JSON)")
+      } else if (feedError) {
+        alert(`At least one feed is invalid (${feedError.data.toLowerCase()}).`)
       } else {
         state.update(assoc('alertsLoading', true))
 
         try {
-          await publishAlert({cron, email, relays, filters, bunker: '', secret: ''})
+          await publishAlert({cron, email, feeds, bunker: '', secret: ''})
 
           m.route.set("/alerts")
         } catch (error) {
@@ -382,7 +380,7 @@ const AlertCreate = {
         m("button", {
           onclick: () => m.route.set("/alerts"),
           class: "text-gray-600 hover:text-gray-900 cursor-pointer",
-          title: "Back to alerts"
+          tooltip: "Back to alerts"
         }, m.trust(ARROW_LEFT_ICON)),
         m("h1", { class: "text-2xl font-bold text-gray-900" }, "Create Alert")
       ]),
@@ -410,58 +408,29 @@ const AlertCreate = {
             ])
           ]),
           m("div", [
-            m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Relays"),
+            m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Feeds"),
             m("div", { class: "space-y-2" }, [
-              relays.map((relay, index) =>
+              feeds.map((feed, index) =>
                 m("div", { class: "flex items-center gap-2" }, [
                   m("button", {
-                    onclick: () => update({relays: removeAt(index, relays)}),
+                    onclick: () => update({feeds: removeAt(index, feeds)}),
                     type: "button",
-                    title: "Remove relay",
+                    tooltip: "Remove feed",
                     class: "text-gray-400 hover:text-gray-600"
                   }, m.trust(TRASH_ICON)),
                   m("input", {
                     type: "text",
-                    placeholder: "wss://relay.example.com",
-                    value: relay,
-                    oninput: (e: InputEvent) => update({relays: replaceAt(index, (e.target as HTMLInputElement).value, relays)}),
+                    value: feed,
+                    oninput: (e: InputEvent) => update({feeds: replaceAt(index, (e.target as HTMLInputElement).value, feeds)}),
                     class: "flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
                   })
                 ])
               ),
               m("button", {
-                onclick: () => update({relays: append("", relays)}),
+                onclick: () => update({feeds: append("", feeds)}),
                 type: "button",
                 class: "text-sm text-purple-600 hover:text-purple-800"
-              }, "+ Add Relay")
-            ])
-          ]),
-          m("div", [
-            m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Filters"),
-            m("div", { class: "space-y-2" }, [
-              filters.map((filter, index) =>
-                m("div", { class: "flex items-center gap-2" }, [
-                  m("button", {
-                    onclick: () => update({filters: removeAt(index, filters)}),
-                    type: "button",
-                    title: "Remove filter",
-                    class: "text-gray-400 hover:text-gray-600"
-                  }, m.trust(TRASH_ICON)),
-                  m("input", {
-                    type: "text",
-                    placeholder: "Enter a filter expression",
-                    value: filter ? JSON.stringify(filter) : "",
-                    onblur: (e: InputEvent) =>
-                      update({filters: replaceAt(index, parseJson((e.target as HTMLInputElement).value) || "", filters)}),
-                    class: "flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
-                  })
-                ])
-              ),
-              m("button", {
-                onclick: () => update({filters: append({}, filters)}),
-                type: "button",
-                class: "text-sm text-purple-600 hover:text-purple-800"
-              }, "+ Add Filter")
+              }, "+ Add Feed")
             ])
           ]),
           m("div", { class: "flex justify-end" }, [

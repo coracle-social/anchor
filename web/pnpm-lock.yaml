@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@welshman/feeds': link:../../welshman/packages/feeds
   '@welshman/lib': link:../../welshman/packages/lib
   '@welshman/util': link:../../welshman/packages/util
   '@welshman/net': link:../../welshman/packages/net
@@ -18,6 +19,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.1.4
         version: 4.1.4(vite@6.3.1(@types/node@22.14.1)(jiti@2.4.2)(lightningcss@1.29.2))
+      '@welshman/feeds':
+        specifier: link:../../welshman/packages/feeds
+        version: link:../../welshman/packages/feeds
       '@welshman/lib':
         specifier: link:../../welshman/packages/lib
         version: link:../../welshman/packages/lib

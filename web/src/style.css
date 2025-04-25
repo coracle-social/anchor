@@ -5,12 +5,12 @@ a, button {
 }
 
 /* Tooltip styling */
-[title] {
+[tooltip] {
   @apply cursor-pointer relative;
 }
 
-[title]:hover::after {
-  content: attr(title);
+[tooltip]:hover::after {
+  content: attr(tooltip);
   position: absolute;
   bottom: 100%;
   left: 50%;

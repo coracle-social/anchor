@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.4",
+    "@welshman/feeds": "^0.1.2",
     "@welshman/lib": "^0.1.2",
     "@welshman/net": "^0.1.2",
     "@welshman/signer": "^0.1.4",
@@ -27,6 +28,7 @@
   },
   "pnpm": {
     "overrides": {
+      "@welshman/feeds": "link:../../welshman/packages/feeds",
       "@welshman/lib": "link:../../welshman/packages/lib",
       "@welshman/util": "link:../../welshman/packages/util",
       "@welshman/net": "link:../../welshman/packages/net",

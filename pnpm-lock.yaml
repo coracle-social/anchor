@@ -7,8 +7,12 @@ settings:
 overrides:
   '@welshman/lib': link:../welshman/packages/lib
   '@welshman/util': link:../welshman/packages/util
+  '@welshman/feeds': link:../welshman/packages/feeds
   '@welshman/content': link:../welshman/packages/content
   '@welshman/net': link:../welshman/packages/net
+  '@welshman/router': link:../welshman/packages/router
+  '@welshman/relay': link:../welshman/packages/relay
+  '@welshman/store': link:../welshman/packages/store
   '@welshman/signer': link:../welshman/packages/signer
 
 importers:
@@ -21,15 +25,27 @@ importers:
       '@welshman/content':
         specifier: link:../welshman/packages/content
         version: link:../welshman/packages/content
+      '@welshman/feeds':
+        specifier: link:../welshman/packages/feeds
+        version: link:../welshman/packages/feeds
       '@welshman/lib':
         specifier: link:../welshman/packages/lib
         version: link:../welshman/packages/lib
       '@welshman/net':
         specifier: link:../welshman/packages/net
         version: link:../welshman/packages/net
+      '@welshman/relay':
+        specifier: link:../welshman/packages/relay
+        version: link:../welshman/packages/relay
+      '@welshman/router':
+        specifier: link:../welshman/packages/router
+        version: link:../welshman/packages/router
       '@welshman/signer':
         specifier: link:../welshman/packages/signer
         version: link:../welshman/packages/signer
+      '@welshman/store':
+        specifier: link:../welshman/packages/store
+        version: link:../welshman/packages/store
       '@welshman/util':
         specifier: link:../welshman/packages/util
         version: link:../welshman/packages/util
