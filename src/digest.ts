@@ -200,7 +200,8 @@ export const buildParameters = async (data: DigestData, handler: string) => {
     return {
       Link: buildLink(event),
       Timestamp: formatTimestamp(event.created_at),
-      Profile: displayProfileByPubkey(event.pubkey),
+      Icon: profilesByPubkey.get().get(event.pubkey)?.picture,
+      Name: displayProfileByPubkey(event.pubkey),
       Content: renderAsHtml(parsed, { createElement, renderEntity }).toString(),
     }
   }

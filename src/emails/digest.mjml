@@ -5,10 +5,12 @@
       .header { font-size: 24px; font-weight: bold; }
       .subheader { font-size: 16px; color: #555; }
       .event-item { margin-bottom: 20px; border-left: 3px solid #F45E43; padding-left: 10px; }
+      .event-meta { margin-bottom: 8px; }
       .event-author { font-weight: bold; }
       .event-timestamp { color: #777; font-size: 12px; }
       .section-header { font-size: 18px; font-weight: bold; margin-top: 15px; }
       .event-link { margin-top: 8px; font-size: 14px; }
+      .profile-image { width: 20px; height: 20px; border-radius: 50%; margin-right: 3px; vertical-align: middle; }
       a { text-decoration: none; }
     </mj-style>
   </mj-head>
@@ -28,7 +30,8 @@
         <mj-text>
           <div class="event-item">
             <div class="event-meta">
-              <span class="event-author">@{{Profile}}</span>
+              {{#Icon}}<img src="{{Icon}}" class="profile-image" />{{/Icon}}
+              <span class="event-author">{{Name}}</span>
               <span class="event-timestamp">at {{Timestamp}}</span>
             </div>
             <div>{{{Content}}}</div>
@@ -47,7 +50,8 @@
         <mj-text>
           <div class="event-item">
             <div class="event-meta">
-              <span class="event-author">@{{Profile}}</span>
+              {{#Icon}}<img src="{{Icon}}" class="profile-image" />{{/Icon}}
+              <span class="event-author">{{Name}}</span>
               <span class="event-timestamp">at {{Timestamp}}</span>
             </div>
             <div>{{{Content}}}</div>
