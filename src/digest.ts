@@ -28,7 +28,7 @@ import { deriveEventsMapped, collection } from '@welshman/store'
 import { makeIntersectionFeed, Feed, makeCreatedAtFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
 import { getCronDate, displayDuration, createElement } from './util.js'
 import { getAlertParams, Alert, AlertParams } from './alert.js'
-import { sendDigest } from './mailgun.js'
+import { sendDigest } from './mailer.js'
 
 // Utilities for loading data
 
@@ -195,7 +195,7 @@ export const buildParameters = async (data: DigestData, handler: string) => {
   }
 
   const getEventVariables = (event: TrustedEvent) => {
-    const parsed = truncate(parse(event), { minLength: 50, maxLength: 400, mediaLength: 50 })
+    const parsed = truncate(parse(event), { minLength: 400, maxLength: 800, mediaLength: 50 })
 
     return {
       Link: buildLink(event),
@@ -212,7 +212,7 @@ export const buildParameters = async (data: DigestData, handler: string) => {
   const totalProfiles = eventsByPubkey.size
   const popular = sortBy(e => -(repliesByParentId.get(e.id)?.length || 0), events).slice(0, 5)
   const popularIds = new Set(popular.map(e => e.id))
-  const latest = sortBy((e) => -e.created_at, popular.filter(e => !popularIds.has(e.id))).slice(0, 5)
+  const latest = sortBy((e) => -e.created_at, events.filter(e => !popularIds.has(e.id))).slice(0, 5)
   const topProfiles = sortBy(([k, ev]) => -ev.length, Array.from(eventsByPubkey.entries()))
 
   return {

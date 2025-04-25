@@ -2,7 +2,7 @@ import { instrument } from 'succinct-async'
 import { getTagValues, getAddress, SignedEvent } from '@welshman/util'
 import { NOTIFIER_SUBSCRIPTION } from './env.js'
 import { Alert } from './alert.js'
-import * as mailer from './mailgun.js'
+import * as mailer from './mailer.js'
 import * as worker from './worker.js'
 import * as db from './database.js'
 

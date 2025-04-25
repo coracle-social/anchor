@@ -5,7 +5,8 @@
       .header { font-size: 24px; font-weight: bold; }
       .subheader { font-size: 16px; color: #555; }
       .event-item { margin-bottom: 20px; border-left: 3px solid #F45E43; padding-left: 10px; }
-      .event-meta { color: #777; font-size: 12px; }
+      .event-author { font-weight: bold; }
+      .event-timestamp { color: #777; font-size: 12px; }
       .section-header { font-size: 18px; font-weight: bold; margin-top: 15px; }
       .event-link { margin-top: 8px; font-size: 14px; }
       a { text-decoration: none; }
@@ -26,7 +27,10 @@
         {{#Popular}}
         <mj-text>
           <div class="event-item">
-            <div class="event-meta">{{Timestamp}} by {{Profile}}</div>
+            <div class="event-meta">
+              <span class="event-author">@{{Profile}}</span>
+              <span class="event-timestamp">at {{Timestamp}}</span>
+            </div>
             <div>{{{Content}}}</div>
             <div class="event-link">
               <a href="{{Link}}">View post</a>
@@ -42,7 +46,10 @@
         {{#Latest}}
         <mj-text>
           <div class="event-item">
-            <div class="event-meta">{{Timestamp}} by {{Profile}}</div>
+            <div class="event-meta">
+              <span class="event-author">@{{Profile}}</span>
+              <span class="event-timestamp">at {{Timestamp}}</span>
+            </div>
             <div>{{{Content}}}</div>
             <div class="event-link">
               <a href="{{Link}}">View post</a>
