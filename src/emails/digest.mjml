@@ -5,12 +5,16 @@
       .header { font-size: 24px; font-weight: bold; }
       .subheader { font-size: 16px; color: #555; }
       .event-item { margin-bottom: 20px; border-left: 3px solid #F45E43; padding-left: 10px; }
-      .event-meta { margin-bottom: 8px; }
+      .event-meta { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+      .event-meta-left { display: flex; align-items: center; }
       .event-author { font-weight: bold; }
       .event-timestamp { color: #777; font-size: 12px; }
+      .event-link { font-size: 12px; }
       .section-header { font-size: 18px; font-weight: bold; margin-top: 15px; }
-      .event-link { margin-top: 8px; font-size: 14px; }
       .profile-image { width: 20px; height: 20px; border-radius: 50%; margin-right: 3px; vertical-align: middle; }
+      .event-stats { margin-top: 8px; color: #666; font-size: 14px; }
+      .stat-item { display: inline-flex; align-items: center; margin-right: 15px; }
+      .stat-icon { width: 16px; height: 16px; margin-right: 4px; vertical-align: middle; }
       a { text-decoration: none; }
     </mj-style>
   </mj-head>
@@ -30,39 +34,38 @@
         <mj-text>
           <div class="event-item">
             <div class="event-meta">
-              {{#Icon}}<img src="{{Icon}}" class="profile-image" />{{/Icon}}
-              <span class="event-author">{{Name}}</span>
-              <span class="event-timestamp">at {{Timestamp}}</span>
+              <div class="event-meta-left">
+                {{#Icon}}<img src="{{Icon}}" class="profile-image" />{{/Icon}}
+                <span class="event-author">{{Name}}</span>
+                <span class="event-timestamp">at {{Timestamp}}</span>
+              </div>
+              <div class="event-link">
+                <a href="{{Link}}">View post</a>
+              </div>
             </div>
             <div>{{{Content}}}</div>
-            <div class="event-link">
-              <a href="{{Link}}">View post</a>
+            <div class="event-stats">
+              <span class="stat-item">
+                <svg class="stat-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="#1C274C" stroke-width="1.5"/>
+                <path d="M9 16C9.85038 16.6303 10.8846 17 12 17C13.1154 17 14.1496 16.6303 15 16" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M16 10.5C16 11.3284 15.5523 12 15 12C14.4477 12 14 11.3284 14 10.5C14 9.67157 14.4477 9 15 9C15.5523 9 16 9.67157 16 10.5Z" fill="#1C274C"/>
+                <ellipse cx="9" cy="10.5" rx="1" ry="1.5" fill="#1C274C"/>
+                </svg>
+                {{Reactions}}
+              </span>
+              <span class="stat-item">
+                <svg class="stat-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4.5 12L9.5 7M4.5 12L9.5 17M4.5 12L14.5 12C16.1667 12 19.5 13 19.5 17" stroke="#1C274C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{Replies}}
+              </span>
             </div>
           </div>
         </mj-text>
         {{/Popular}}
         <mj-divider border-color="#cccccc" />
         {{/HasPopular}}
-
-        {{#HasLatest}}
-        <mj-text css-class="section-header">Latest</mj-text>
-        {{#Latest}}
-        <mj-text>
-          <div class="event-item">
-            <div class="event-meta">
-              {{#Icon}}<img src="{{Icon}}" class="profile-image" />{{/Icon}}
-              <span class="event-author">{{Name}}</span>
-              <span class="event-timestamp">at {{Timestamp}}</span>
-            </div>
-            <div>{{{Content}}}</div>
-            <div class="event-link">
-              <a href="{{Link}}">View post</a>
-            </div>
-          </div>
-        </mj-text>
-        {{/Latest}}
-        <mj-divider border-color="#cccccc" />
-        {{/HasLatest}}
 
         <mj-text>
           You're receiving this email because you subscribed to notifications.

@@ -1,5 +1,5 @@
 import {neventEncode, decode} from 'nostr-tools/nip19'
-import { max, countBy, sleep, call, ago, HOUR, ms, MINUTE, int, removeNil, now, sortBy, concat, groupBy, displayList, indexBy, assoc, uniq, nth, nthEq, formatTimestamp, dateToSeconds } from '@welshman/lib'
+import { max, spec, countBy, sleep, call, ago, HOUR, ms, MINUTE, int, removeNil, now, sortBy, concat, groupBy, displayList, indexBy, assoc, uniq, nth, nthEq, formatTimestamp, dateToSeconds } from '@welshman/lib'
 import { parse, truncate, renderAsHtml } from '@welshman/content'
 import {
   TrustedEvent,
@@ -203,6 +203,8 @@ export const buildParameters = async (data: DigestData, handler: string) => {
       Icon: profilesByPubkey.get().get(event.pubkey)?.picture,
       Name: displayProfileByPubkey(event.pubkey),
       Content: renderAsHtml(parsed, { createElement, renderEntity }).toString(),
+      Replies: repliesByParentId.get(event.id)?.filter(e => [COMMENT, NOTE].includes(e.kind))?.length || 0,
+      Reactions: repliesByParentId.get(event.id)?.filter(spec({kind: REACTION}))?.length || 0,
     }
   }
 
@@ -213,14 +215,15 @@ export const buildParameters = async (data: DigestData, handler: string) => {
   const totalProfiles = eventsByPubkey.size
   const popular = sortBy(e => -(repliesByParentId.get(e.id)?.length || 0), events).slice(0, 5)
   const popularIds = new Set(popular.map(e => e.id))
-  const latest = sortBy((e) => -e.created_at, events.filter(e => !popularIds.has(e.id))).slice(0, 5)
-  const topProfiles = sortBy(([k, ev]) => -ev.length, Array.from(eventsByPubkey.entries()))
+  const topProfiles = sortBy(
+    ([k, ev]) => -ev.length,
+    Array.from(eventsByPubkey.entries())
+      .filter(([k]) => profilesByPubkey.get().get(k))
+  )
 
   return {
     Total: total,
     Duration: displayDuration(now() - since),
-    Latest: latest.map((e) => getEventVariables(e)),
-    HasLatest: latest.length > 0,
     Popular: popular.map((e) => getEventVariables(e)),
     HasPopular: popular.length > 0,
     TopProfiles: displayList(topProfiles.map(([pk]) => displayProfileByPubkey(pk))),
