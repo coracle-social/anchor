@@ -9,7 +9,7 @@ export const sendConfirm = ({ email, token }: Alert) => {
   const href = `${ANCHOR_URL}/confirm?email=${encodeURIComponent(email)}&token=${token}`
 
   return client.sendEmail({
-    From: `${ANCHOR_NAME} <noreply@${new URL(ANCHOR_URL).hostname}>`,
+    From: POSTMARK_SENDER_ADDRESS,
     To: email,
     Subject: 'Confirm your alert',
     HtmlBody: `
