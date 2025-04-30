@@ -1,5 +1,5 @@
 import {neventEncode, decode} from 'nostr-tools/nip19'
-import { max, spec, countBy, sleep, call, ago, HOUR, ms, MINUTE, int, removeNil, now, sortBy, concat, groupBy, displayList, indexBy, assoc, uniq, nth, nthEq, formatTimestamp, dateToSeconds } from '@welshman/lib'
+import { max, inc, pluck, spec, countBy, sleep, call, removeNil, now, sortBy, concat, groupBy, displayList, indexBy, assoc, uniq, nth, nthEq, formatTimestamp, dateToSeconds } from '@welshman/lib'
 import { parse, truncate, renderAsHtml } from '@welshman/content'
 import {
   TrustedEvent,
@@ -13,6 +13,7 @@ import {
   REACTION,
   RELAYS,
   PROFILE,
+  FOLLOWS,
   displayProfile,
   displayPubkey,
   readList,
@@ -20,12 +21,14 @@ import {
   asDecryptedEvent,
   PublishedList,
   PublishedProfile,
+  getPubkeyTagValues,
+  getListTags,
 } from '@welshman/util'
 import { load } from '@welshman/net'
 import { Repository } from '@welshman/relay'
 import { Router, routerContext, makeSelection, addMaximalFallbacks } from '@welshman/router'
 import { deriveEventsMapped, collection } from '@welshman/store'
-import { makeIntersectionFeed, Feed, makeCreatedAtFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
+import { makeIntersectionFeed, Scope, Feed, makeCreatedAtFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
 import { getCronDate, displayDuration, createElement } from './util.js'
 import { getAlertParams, Alert, AlertParams } from './alert.js'
 import { sendDigest } from './mailer.js'
@@ -33,13 +36,6 @@ import { sendDigest } from './mailer.js'
 // Utilities for loading data
 
 export const repository = Repository.get()
-
-setInterval(() => {
-  // Every so often, delete old events to keep our cache lean
-  for (const event of repository.query([{until: ago(HOUR)}])) {
-    repository.removeEvent(event.id)
-  }
-}, ms(int(10, MINUTE)))
 
 export const relaySelections = deriveEventsMapped<PublishedList>(repository, {
   filters: [{kinds: [RELAYS]}],
@@ -87,13 +83,92 @@ export const {
   },
 })
 
-export const loadFeed = async (feed: Feed) => {
+export const follows = deriveEventsMapped<PublishedList>(repository, {
+  filters: [{kinds: [FOLLOWS]}],
+  eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
+  itemToEvent: item => item.event,
+})
+
+export const {
+  indexStore: followsByPubkey,
+  loadItem: loadFollows,
+} = collection({
+  name: "follows",
+  store: follows,
+  getKey: follows => follows.event.pubkey,
+  load: (pubkey: string) => {
+    const {merge, Index, FromPubkey} = Router.get()
+
+    return load({
+      relays: merge([Index(), FromPubkey(pubkey)]).getUrls(),
+      filters: [{kinds: [FOLLOWS], authors: [pubkey]}],
+      onEvent: event => repository.publish(event),
+    })
+  },
+})
+
+export const getFollows = (pubkey: string) =>
+  getPubkeyTagValues(getListTags(followsByPubkey.get().get(pubkey)))
+
+export const getNetwork = (pubkey: string) => {
+  const pubkeys = new Set(getFollows(pubkey))
+  const network = new Set<string>()
+
+  for (const follow of pubkeys) {
+    for (const tpk of getFollows(follow)) {
+      if (!pubkeys.has(tpk)) {
+        network.add(tpk)
+      }
+    }
+  }
+
+  return Array.from(network)
+}
+
+export const getFollowers = (pubkey: string) =>
+  uniq(pluck<string>('pubkey', repository.query([{kinds: [FOLLOWS], '#p': [pubkey]}])))
+
+export const loadFeed = async (alert: Alert, feed: Feed) => {
   const events: TrustedEvent[] = []
   const promises: Promise<unknown>[] = []
   const ctrl = new FeedController({
     feed,
-    getPubkeysForScope: (scope: string) => [],
-    getPubkeysForWOTRange: (min: number, max: number) => [],
+    getPubkeysForScope: (scope: string) => {
+      switch (scope) {
+        case Scope.Self:
+          return [alert.pubkey]
+        case Scope.Follows:
+          return getFollows(alert.pubkey)
+        case Scope.Network:
+          return getNetwork(alert.pubkey)
+        case Scope.Followers:
+          return getFollowers(alert.pubkey)
+        default:
+          return []
+      }
+    },
+    getPubkeysForWOTRange: (minimum: number, maximum: number) => {
+      const graph = new Map<string, number>()
+
+      for (const follow of getFollows(alert.pubkey)) {
+        for (const pubkey of getFollows(follow)) {
+          graph.set(pubkey, inc(graph.get(pubkey)))
+        }
+      }
+
+      const pubkeys = []
+      const maxWot = max(Array.from(graph.values()))
+      const thresholdMin = maxWot * minimum
+      const thresholdMax = maxWot * maximum
+
+      for (const [tpk, score] of graph.entries()) {
+        if (score >= thresholdMin && score <= thresholdMax) {
+          pubkeys.push(tpk)
+        }
+      }
+
+      return pubkeys
+    },
     onEvent: e => {
       events.push(e)
 
@@ -101,6 +176,7 @@ export const loadFeed = async (feed: Feed) => {
         promises.push(
           call(async () => {
             await loadRelaySelections(pubkey)
+            await loadFollows(pubkey)
             await loadProfile(pubkey)
           })
         )
@@ -130,7 +206,7 @@ export const fetchData = async (alert: Alert) => {
   const { cron, feeds } = getAlertParams(alert)
   const since = dateToSeconds(getCronDate(cron, -2))
   const feed = makeIntersectionFeed(makeCreatedAtFeed({since}), makeUnionFeed(...feeds))
-  const events = await loadFeed(feed)
+  const events = await loadFeed(alert, feed)
 
   if (events.length === 0) return
 

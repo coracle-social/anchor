@@ -1,6 +1,6 @@
 import { CronExpressionParser } from 'cron-parser'
 import { tryCatch, int, HOUR, isPojo, fromPairs, removeNil, parseJson } from '@welshman/lib'
-import { Feed, ValidationError, validateFeed, walkFeed, isScopeFeed, isWOTFeed } from '@welshman/feeds'
+import { Feed, ValidationError, validateFeed } from '@welshman/feeds'
 import type { SignedEvent } from '@welshman/util'
 import {
   getTags,
@@ -34,20 +34,24 @@ export type AlertParams = {
   feeds: Feed[]
   handlers: string[][]
   channel: Channel
-  email?: string
   bunker_url?: string
+  email?: string
+  locale?: string
   pause_until?: number
+  timezone?: string
 }
 
 export const getAlertParams = (alert: Alert): AlertParams => {
   return {
-    channel: getTagValue('channel', alert.tags) as Channel,
     cron: getTagValue('cron', alert.tags) || '0 0 0 0 0 0',
-    handlers: getTags('handler', alert.tags),
     feeds: getTagValues('feed', alert.tags).map(parseJson),
-    pause_until: parseInt(getTagValue('pause_until', alert.tags) || '') || 0,
+    handlers: getTags('handler', alert.tags),
+    channel: getTagValue('channel', alert.tags) as Channel,
     bunker_url: getTagValue('cron', alert.tags),
     email: getTagValue('email', alert.tags),
+    locale: getTagValue('locale', alert.tags),
+    pause_until: parseInt(getTagValue('pause_until', alert.tags) || '') || 0,
+    timezone: getTagValue('timezone', alert.tags),
   }
 }
 
@@ -72,29 +76,11 @@ export const getAlertError = async ({ channel, cron, feeds, email }: AlertParams
 
   const parsedFeeds = removeNil(feeds)
 
-  if (parsedFeeds.length < feeds.length) return "At least on feed is invalid (must be valid JSON)"
+  if (parsedFeeds.length < feeds.length) return "At least one feed is invalid (must be valid JSON)"
 
   const feedError = parsedFeeds.map(validateFeed).find(e => e instanceof ValidationError)
 
   if (feedError) return `At least one feed is invalid (${feedError.data.toLowerCase()}).`
-
-  for (const feed of feeds) {
-    let hasWotFeed = false
-    let hasScopeFeed = false
-
-    walkFeed(feed, feed => {
-      if (isScopeFeed(feed)) {
-        hasScopeFeed = true
-      }
-
-      if (isWOTFeed(feed)) {
-        hasWotFeed = true
-      }
-    })
-
-    if (hasWotFeed) return `Web of trust feeds are not currently supported.`
-    if (hasScopeFeed) return `Scope feeds are not currently supported.`
-  }
 }
 
 export const getStatusTags = async (alert: Alert) => {

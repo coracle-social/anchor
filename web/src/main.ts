@@ -2,7 +2,7 @@ import './style.css'
 
 import m from "mithril"
 import {writable} from 'svelte/store'
-import {getJson, removeNil, spec, parseJson, setJson, assoc, randomId, randomInt, TIMEZONE, tryCatch} from '@welshman/lib'
+import {getJson, insertAt, removeNil, spec, parseJson, setJson, assoc, randomId, randomInt, TIMEZONE, tryCatch, LOCALE} from '@welshman/lib'
 import {withGetter} from '@welshman/store'
 import {Router} from '@welshman/router'
 import {validateFeed, ValidationError, displayFeeds, Feed} from '@welshman/feeds'
@@ -177,6 +177,8 @@ export const makeAlert = async ({cron, email, feeds, bunker, secret}: AlertParam
     ["cron", cron],
     ["email", email],
     ["channel", "email"],
+    ["locale", LOCALE],
+    ["timezone", insertAt(3, ':', Array.from(TIMEZONE.slice(3))).join('')],
     [
       "handler",
       "31990:97c70a44366a6535c145b333f973ea86dfdc2d7a99da618c40c64705ad98e322:1685968093690",
