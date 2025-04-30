@@ -97,10 +97,10 @@ server.ws('/', (socket: WebSocket, request: Request) => {
 server.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err) {
     if (err instanceof ActionError) {
-      res.status(400).send({error: err.message})
+      res.status(400).send({ error: err.message })
     } else {
       console.log('Unhandled error', err)
-      res.status(500).send({error: 'Internal server error'})
+      res.status(500).send({ error: 'Internal server error' })
     }
   } else {
     next()

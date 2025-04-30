@@ -7,7 +7,7 @@
       .event-item { margin-bottom: 20px; border-left: 3px solid #F45E43; padding-left: 10px; }
       .event-meta { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
       .event-meta-left { display: flex; align-items: center; }
-      .event-author { font-weight: bold; }
+      .event-author { font-weight: bold; margin-right: 4px; }
       .event-content { white-space: pre-wrap; }
       .event-timestamp { color: #777; font-size: 12px; }
       .event-link { font-size: 12px; }
@@ -47,12 +47,12 @@
             <div class="event-content">{{{Content}}}</div>
             <div class="event-stats">
               <span class="stat-item">
-                <img class="stat-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAn1BMVEUAAAAAAIAAAFUzMzMrK1UkJEkVK1UkJEkiIkQgIFAeLUscK0cbKFEbJEkaI08aK00ZKUocJUobKU0bKEwaKEsaJ04bJ0sbJ0sdJ0wcJ00cJk0cJkwcJk0bKEwbKEscKEwcJ00cJ0wcJ0wcJ0sbJk0bJ0wcJ0wcJ0sbJ0wdJ0wcJ00cKE0cJ0wbJ0wbJ0scJ0wcJ0wcJ0wcJ0wcJ0z///++FK4PAAAANHRSTlMAAgMFBgcMDg8QERITHB0eHzc4OTo7QVVhY2RleHl6h4iJiouMnq+wsbK+wcLD3+Dh4vHyB17REwAAAAFiS0dENKmx6f0AAACTSURBVBgZBcEJQoJAAADAIUhQkjxKJZdKyzPLXfj/35oBPDZNAYCXy5BSf14CHr7um5KyjfsMfP9MgPq2h9f7BKBOC1w2ALydKIaSLtAFqj43+0MIhID4bBYBIDWKoQJg3OecW9aH1eqwZnvEMtZG79drN1KnOexuNfD0+wGyXWwrxtv0mQEWpz6l/jgHQD6d5sA/VqYMPJkJl3UAAAAASUVORK5CYII=" />
-                {{Reactions}}
-              </span>
-              <span class="stat-item">
                 <img class="stat-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAASFBMVEUAAAAiIkQdJ04bJkwbKU0dJkscKEwbJ00cKEsdJkwcJ0wbKEscJkwcJ0scJ00bJ00dJk0bJ0wcJkwcKE0cJ0wcJ0wcJ0z///8ZxKH0AAAAF3RSTlMADxovOD1AQlJXW19ld4iWoKizwenq9eQPMKMAAAABYktHRBcL1piPAAAAOElEQVQY02NgoBZg40fls4qw4+WziAnxggA3I1xAmA8EBEU5YEaKsoFpZlEmNBEBHjRruTip4wsADUgCEGuuAxQAAAAASUVORK5CYII=" />
                 {{Replies}}
+              </span>
+              <span class="stat-item">
+                <img class="stat-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAn1BMVEUAAAAAAIAAAFUzMzMrK1UkJEkVK1UkJEkiIkQgIFAeLUscK0cbKFEbJEkaI08aK00ZKUocJUobKU0bKEwaKEsaJ04bJ0sbJ0sdJ0wcJ00cJk0cJkwcJk0bKEwbKEscKEwcJ00cJ0wcJ0wcJ0sbJk0bJ0wcJ0wcJ0sbJ0wdJ0wcJ00cKE0cJ0wbJ0wbJ0scJ0wcJ0wcJ0wcJ0wcJ0z///++FK4PAAAANHRSTlMAAgMFBgcMDg8QERITHB0eHzc4OTo7QVVhY2RleHl6h4iJiouMnq+wsbK+wcLD3+Dh4vHyB17REwAAAAFiS0dENKmx6f0AAACTSURBVBgZBcEJQoJAAADAIUhQkjxKJZdKyzPLXfj/35oBPDZNAYCXy5BSf14CHr7um5KyjfsMfP9MgPq2h9f7BKBOC1w2ALydKIaSLtAFqj43+0MIhID4bBYBIDWKoQJg3OecW9aH1eqwZnvEMtZG79drN1KnOexuNfD0+wGyXWwrxtv0mQEWpz6l/jgHQD6d5sA/VqYMPJkJl3UAAAAASUVORK5CYII=" />
+                {{Reactions}}
               </span>
             </div>
           </div>

@@ -1,6 +1,6 @@
-import {last} from '@welshman/lib'
+import { last } from '@welshman/lib'
 import { getAlert } from './database.js'
-import {runJob} from './worker.js'
+import { runJob } from './worker.js'
 
 const address = last(process.argv)
 
@@ -10,18 +10,18 @@ if (!address) {
 }
 
 getAlert(address)
-  .then(alert => {
+  .then((alert) => {
     if (!alert) {
-      console.error("Invalid alert address")
+      console.error('Invalid alert address')
       process.exit(1)
     }
 
     return runJob(alert)
   })
-  .then(success => {
+  .then((success) => {
     process.exit(success ? 0 : 1)
   })
-  .catch(error => {
+  .catch((error) => {
     console.error(error)
     process.exit(1)
   })

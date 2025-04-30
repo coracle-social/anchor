@@ -1,5 +1,31 @@
-import {neventEncode, decode} from 'nostr-tools/nip19'
-import { max, inc, pluck, spec, countBy, sleep, call, removeNil, now, sortBy, concat, groupBy, displayList, indexBy, assoc, uniq, nth, nthEq, formatTimestamp, dateToSeconds } from '@welshman/lib'
+import { neventEncode, decode } from 'nostr-tools/nip19'
+import {
+  uniqBy,
+  prop,
+  max,
+  tryCatch,
+  LOCALE,
+  TIMEZONE,
+  inc,
+  pluck,
+  spec,
+  countBy,
+  sleep,
+  call,
+  removeNil,
+  now,
+  sortBy,
+  concat,
+  groupBy,
+  displayList,
+  indexBy,
+  assoc,
+  uniq,
+  nth,
+  nthEq,
+  dateToSeconds,
+  secondsToDate,
+} from '@welshman/lib'
 import { parse, truncate, renderAsHtml } from '@welshman/content'
 import {
   TrustedEvent,
@@ -26,9 +52,21 @@ import {
 } from '@welshman/util'
 import { load } from '@welshman/net'
 import { Repository } from '@welshman/relay'
-import { Router, routerContext, makeSelection, addMaximalFallbacks } from '@welshman/router'
+import { Router, routerContext, getFilterSelections, makeSelection, addMinimalFallbacks } from '@welshman/router'
 import { deriveEventsMapped, collection } from '@welshman/store'
-import { makeIntersectionFeed, Scope, Feed, makeCreatedAtFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
+import {
+  makeIntersectionFeed,
+  feedFromFilters,
+  getFeedArgs,
+  isScopeFeed,
+  walkFeed,
+  isWOTFeed,
+  Scope,
+  Feed,
+  makeCreatedAtFeed,
+  makeUnionFeed,
+  FeedController,
+} from '@welshman/feeds'
 import { getCronDate, displayDuration, createElement } from './util.js'
 import { getAlertParams, Alert, AlertParams } from './alert.js'
 import { sendDigest } from './mailer.js'
@@ -38,71 +76,62 @@ import { sendDigest } from './mailer.js'
 export const repository = Repository.get()
 
 export const relaySelections = deriveEventsMapped<PublishedList>(repository, {
-  filters: [{kinds: [RELAYS]}],
-  itemToEvent: item => item.event,
+  filters: [{ kinds: [RELAYS] }],
+  itemToEvent: (item) => item.event,
   eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
 })
 
-export const {
-  indexStore: relaySelectionsByPubkey,
-  loadItem: loadRelaySelections,
-} = collection({
-  name: "relaySelections",
+export const { indexStore: relaySelectionsByPubkey, loadItem: loadRelaySelections } = collection({
+  name: 'relaySelections',
   store: relaySelections,
-  getKey: relaySelections => relaySelections.event.pubkey,
+  getKey: (relaySelections) => relaySelections.event.pubkey,
   load: (pubkey: string) => {
     return load({
       relays: Router.get().Index().getUrls(),
-      filters: [{kinds: [RELAYS], authors: [pubkey]}],
-      onEvent: event => repository.publish(event),
+      filters: [{ kinds: [RELAYS], authors: [pubkey] }],
+      onEvent: (event) => repository.publish(event),
     })
   },
 })
 
 export const profiles = deriveEventsMapped<PublishedProfile>(repository, {
-  filters: [{kinds: [PROFILE]}],
+  filters: [{ kinds: [PROFILE] }],
   eventToItem: readProfile,
-  itemToEvent: item => item.event,
+  itemToEvent: (item) => item.event,
 })
 
-export const {
-  indexStore: profilesByPubkey,
-  loadItem: loadProfile,
-} = collection({
-  name: "profiles",
+export const { indexStore: profilesByPubkey, loadItem: loadProfile } = collection({
+  name: 'profiles',
   store: profiles,
-  getKey: profile => profile.event.pubkey,
+  getKey: (profile) => profile.event.pubkey,
   load: (pubkey: string) => {
-    const {merge, Index, FromPubkey} = Router.get()
+    const { merge, Index, FromPubkey } = Router.get()
 
     return load({
-      relays: merge([Index(), FromPubkey(pubkey)]).getUrls(),
-      filters: [{kinds: [PROFILE], authors: [pubkey]}],
-      onEvent: event => repository.publish(event),
+      relays: merge([Index(), FromPubkey(pubkey)]).limit(10).getUrls(),
+      filters: [{ kinds: [PROFILE], authors: [pubkey] }],
+      onEvent: (event) => repository.publish(event),
     })
   },
 })
 
 export const follows = deriveEventsMapped<PublishedList>(repository, {
-  filters: [{kinds: [FOLLOWS]}],
+  filters: [{ kinds: [FOLLOWS] }],
   eventToItem: (event: TrustedEvent) => readList(asDecryptedEvent(event)),
-  itemToEvent: item => item.event,
+  itemToEvent: (item) => item.event,
 })
 
-export const {
-  indexStore: followsByPubkey,
-  loadItem: loadFollows,
-} = collection({
-  name: "follows",
+export const { indexStore: followsByPubkey, loadItem: loadFollows } = collection({
+  name: 'follows',
   store: follows,
-  getKey: follows => follows.event.pubkey,
+  getKey: (follows) => follows.event.pubkey,
   load: (pubkey: string) => {
-    const {merge, Index, FromPubkey} = Router.get()
+    const { merge, Index, FromPubkey } = Router.get()
 
     return load({
       relays: merge([Index(), FromPubkey(pubkey)]).getUrls(),
-      filters: [{kinds: [FOLLOWS], authors: [pubkey]}],
-      onEvent: event => repository.publish(event),
+      filters: [{ kinds: [FOLLOWS], authors: [pubkey] }],
+      onEvent: (event) => repository.publish(event),
     })
   },
 })
@@ -126,10 +155,12 @@ export const getNetwork = (pubkey: string) => {
 }
 
 export const getFollowers = (pubkey: string) =>
-  uniq(pluck<string>('pubkey', repository.query([{kinds: [FOLLOWS], '#p': [pubkey]}])))
+  uniq(pluck<string>('pubkey', repository.query([{ kinds: [FOLLOWS], '#p': [pubkey] }])))
 
 export const loadFeed = async (alert: Alert, feed: Feed) => {
+  const seen = new Set<string>()
   const events: TrustedEvent[] = []
+  const context: TrustedEvent[] = []
   const promises: Promise<unknown>[] = []
   const ctrl = new FeedController({
     feed,
@@ -169,136 +200,192 @@ export const loadFeed = async (alert: Alert, feed: Feed) => {
 
       return pubkeys
     },
-    onEvent: e => {
+    onEvent: (e) => {
+      seen.add(e.id)
       events.push(e)
+      context.push(e)
 
-      for (const pubkey of uniq([e.pubkey, ...getTagValues('p', e.tags)])) {
-        promises.push(
-          call(async () => {
-            await loadRelaySelections(pubkey)
-            await loadFollows(pubkey)
-            await loadProfile(pubkey)
-          })
-        )
-      }
+      const relays = Router.get().Replies(e).policy(addMinimalFallbacks).getUrls()
+      const filters = getReplyFilters(events, { kinds: [NOTE, COMMENT, REACTION] })
+
+      promises.push(
+        call(async () => {
+          for (const reply of await load({ relays, filters })) {
+            if (!seen.has(reply.id)) {
+              seen.add(reply.id)
+              context.push(reply)
+            }
+          }
+        })
+      )
     },
   })
 
-  await ctrl.load(1000)
+  await ctrl.load(200)
   await Promise.all(promises)
 
-  return events
+  return {events, context}
 }
 
 // Utilities for actually building the feed
 
-export const DEFAULT_HANDLER = 'https://coracle.social/'
-
-export type DigestData = {
+type DigestData = {
   since: number
   events: TrustedEvent[]
   context: TrustedEvent[]
 }
 
-export const fetchData = async (alert: Alert) => {
+const fetchData = async (alert: Alert) => {
   await loadRelaySelections(alert.pubkey)
 
+  const { merge, Index, ForPubkey } = Router.get()
   const { cron, feeds } = getAlertParams(alert)
   const since = dateToSeconds(getCronDate(cron, -2))
-  const feed = makeIntersectionFeed(makeCreatedAtFeed({since}), makeUnionFeed(...feeds))
-  const events = await loadFeed(alert, feed)
+  const feed = makeIntersectionFeed(makeCreatedAtFeed({ since }), makeUnionFeed(...feeds))
 
-  if (events.length === 0) return
+  let needsFollows = false
+  let needsFollowers = false
+  let needsNetwork = false
 
-  const {merge, Replies} = Router.get()
-  const relays = merge(events.map(Replies)).policy(addMaximalFallbacks).getUrls()
-  const replyFilters = getReplyFilters(events, { kinds: [NOTE, COMMENT, REACTION] })
-  const context = concat(events, await load({ relays, filters: replyFilters }))
+  walkFeed(feed, f => {
+    needsFollows = needsFollows || isScopeFeed(f) && getFeedArgs(f).includes(Scope.Follows)
+    needsFollowers = needsFollowers || isScopeFeed(f) && getFeedArgs(f).includes(Scope.Followers)
+    needsNetwork = needsNetwork || isWOTFeed(f) || isScopeFeed(f) && getFeedArgs(f).includes(Scope.Network)
+  })
+
+  if (needsFollows || needsNetwork) {
+    await loadFollows(alert.pubkey)
+  }
+
+  if (needsFollowers) {
+    await load({
+      filters: [{ kinds: [FOLLOWS], '#p': [alert.pubkey] }],
+      relays: merge([Index(), ForPubkey(alert.pubkey)]).getUrls(),
+    })
+  }
+
+  if (needsNetwork) {
+    await Promise.all(getFilterSelections([{ kinds: [FOLLOWS], authors: getFollows(alert.pubkey) }]).map(load))
+  }
+
+  const {events, context} = await loadFeed(alert, feed)
 
   return { since, events, context } as DigestData
 }
 
-export const loadHandler = async (alert: Alert) => {
+const loadHandler = async (alert: Alert) => {
   const { handlers } = getAlertParams(alert)
+  const defaultHandler = 'https://coracle.social/'
   const webHandlers = handlers.filter(nthEq(3, 'web'))
   const filters = getIdFilters(webHandlers.map(nth(1)))
   const relays = webHandlers.map(nth(2))
 
   if (filters.length === 0 || relays.length === 0) {
-    return DEFAULT_HANDLER
+    return defaultHandler
   }
 
   const events = await load({ relays, filters })
   const getTemplates = (e: TrustedEvent) => e.tags.filter(nthEq(0, 'web')).map(nth(1))
   const templates = events.flatMap((e) => getTemplates(e))
 
-  return templates[0] || DEFAULT_HANDLER
+  return templates[0] || defaultHandler
 }
 
-export const buildParameters = async (data: DigestData, handler: string) => {
-  const buildLink = (event: TrustedEvent) => {
-    const relays = Router.get().Event(event).getUrls()
-    const nevent = neventEncode({...event, relays})
+const getFormatter = (alert: Alert) => {
+  const { locale, timezone } = getAlertParams(alert)
 
-    if (handler.includes('<bech32>')) {
-      return handler.replace('<bech32>', nevent)
-    } else {
-      return handler + nevent
+  // Attempt to make a formatter with as many user-provided options as we can
+  for (const l of removeNil([locale, LOCALE])) {
+    for (const t of removeNil([timezone, TIMEZONE])) {
+      const formatter = tryCatch(
+        () =>
+          new Intl.DateTimeFormat(locale, {
+            dateStyle: 'short',
+            timeStyle: 'short',
+            timeZone: timezone,
+          })
+      )
+
+      if (formatter) {
+        return formatter
+      }
     }
   }
 
-  const displayProfileByPubkey = (pubkey: string) =>
-    displayProfile(profilesByPubkey.get().get(pubkey), displayPubkey(pubkey))
+  throw new Error("This should never happen, it's here only because of typescript")
+}
 
-  const renderEntity = (entity: string) => {
-    let display = entity.slice(0, 16) + "…"
+const buildLink = (event: TrustedEvent, handler: string) => {
+  const relays = Router.get().Event(event).getUrls()
+  const nevent = neventEncode({ ...event, relays })
 
-    try {
-      const {type, data} = decode(entity)
+  if (handler.includes('<bech32>')) {
+    return handler.replace('<bech32>', nevent)
+  } else {
+    return handler + nevent
+  }
+}
 
-      if (type === 'npub') {
-        display = '@' + displayProfileByPubkey(data)
-      }
+const displayProfileByPubkey = (pubkey: string) =>
+  displayProfile(profilesByPubkey.get().get(pubkey), displayPubkey(pubkey))
 
-      if (type === 'nprofile') {
-        display = '@' + displayProfileByPubkey(data.pubkey)
-      }
-    } catch (e) {
-      // Pass
+const renderEntity = (entity: string) => {
+  let display = entity.slice(0, 16) + '…'
+
+  try {
+    const { type, data } = decode(entity)
+
+    if (type === 'npub') {
+      display = '@' + displayProfileByPubkey(data)
     }
 
-    return display
+    if (type === 'nprofile') {
+      display = '@' + displayProfileByPubkey(data.pubkey)
+    }
+  } catch (e) {
+    // Pass
   }
 
+  return display
+}
+
+export const buildParameters = async (alert: Alert, data: DigestData) => {
   const getEventVariables = (event: TrustedEvent) => {
     const parsed = truncate(parse(event), { minLength: 400, maxLength: 800, mediaLength: 50 })
 
     return {
-      Link: buildLink(event),
-      Timestamp: formatTimestamp(event.created_at),
+      Link: buildLink(event, handler),
+      Timestamp: formatter.format(secondsToDate(event.created_at)),
       Icon: profilesByPubkey.get().get(event.pubkey)?.picture,
       Name: displayProfileByPubkey(event.pubkey),
       Content: renderAsHtml(parsed, { createElement, renderEntity }).toString(),
-      Replies: repliesByParentId.get(event.id)?.filter(e => [COMMENT, NOTE].includes(e.kind))?.length || 0,
-      Reactions: repliesByParentId.get(event.id)?.filter(spec({kind: REACTION}))?.length || 0,
+      Replies:
+        repliesByParentId.get(event.id)?.filter((e) => [COMMENT, NOTE].includes(e.kind))?.length ||
+        0,
+      Reactions: repliesByParentId.get(event.id)?.filter(spec({ kind: REACTION }))?.length || 0,
     }
   }
 
   const { since, events, context } = data
+  const formatter = getFormatter(alert)
+  const handler = await loadHandler(alert)
   const repliesByParentId = groupBy(getParentId, context)
   const eventsByPubkey = groupBy((e) => e.pubkey, events)
-  const total = events.length > 100 ? `${events.length}+` : events.length
-  const totalProfiles = eventsByPubkey.size
-  const popular = sortBy(e => -(repliesByParentId.get(e.id)?.length || 0), events).slice(0, 5)
-  const popularIds = new Set(popular.map(e => e.id))
+
+  await Promise.all(Array.from(eventsByPubkey.keys()).map(async pubkey => {
+    await loadRelaySelections(pubkey)
+    await loadProfile(pubkey)
+  }))
+
+  const popular = sortBy((e) => -(repliesByParentId.get(e.id)?.length || 0), events).slice(0, 5)
+  const popularIds = new Set(popular.map((e) => e.id))
   const topProfiles = sortBy(
     ([k, ev]) => -ev.length,
-    Array.from(eventsByPubkey.entries())
-      .filter(([k]) => profilesByPubkey.get().get(k))
+    Array.from(eventsByPubkey.entries()).filter(([k]) => profilesByPubkey.get().get(k))
   )
 
   return {
-    Total: total,
+    Total: events.length,
     Duration: displayDuration(now() - since),
     Popular: popular.map((e) => getEventVariables(e)),
     HasPopular: popular.length > 0,
@@ -309,11 +396,8 @@ export const buildParameters = async (data: DigestData, handler: string) => {
 export const send = async (alert: Alert) => {
   const data = await fetchData(alert)
 
-  if (data) {
-    const handler = await loadHandler(alert)
-    const variables = await buildParameters(data, handler)
-
-    await sendDigest(alert, variables)
+  if (data.events.length > 0) {
+    await sendDigest(alert, await buildParameters(alert, data))
   }
 
   return Boolean(data)

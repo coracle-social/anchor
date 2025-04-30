@@ -24,12 +24,12 @@ const loadTemplate = async (name: string) => {
 export const render = async (name: string, view: Record<string, any> = {}) => {
   const template = await loadTemplate(name)
   const mustacheRendered = Mustache.render(template, view)
-  
+
   // If it's an MJML file, render it with MJML
   if (name.endsWith('.mjml')) {
     const { html } = mjml2html(mustacheRendered)
     return html
   }
-  
+
   return mustacheRendered
 }

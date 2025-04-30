@@ -111,7 +111,7 @@ export class Connection {
 
     const userPubkey = this.auth.event.pubkey
     const alerts = await getAlertsForPubkey(userPubkey)
-    const activeAlerts = alerts.filter(alert => !alert.deleted_at)
+    const activeAlerts = alerts.filter((alert) => !alert.deleted_at)
     const alertEvents = pluck<SignedEvent>('event', activeAlerts)
     const statusEvents = await Promise.all(activeAlerts.map(createStatusEvent))
 

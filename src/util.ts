@@ -1,6 +1,13 @@
 import sanitizeHtml from 'sanitize-html'
 import { remove, cached, uniq, indexBy, nth, batcher } from '@welshman/lib'
-import { SignedEvent, PROFILE, readProfile, readList, asDecryptedEvent, RELAYS } from '@welshman/util'
+import {
+  SignedEvent,
+  PROFILE,
+  readProfile,
+  readList,
+  asDecryptedEvent,
+  RELAYS,
+} from '@welshman/util'
 import { Router } from '@welshman/router'
 import { load } from '@welshman/net'
 import { CronExpressionParser } from 'cron-parser'

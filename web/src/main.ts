@@ -25,7 +25,7 @@ const ALERT_STATUS = 32831
 
 const CRON_MINUTE = randomInt(0, 59)
 
-const CRON_HOUR = (17 - parseInt(TIMEZONE.slice(3)) / 100) % 24
+const CRON_HOUR = (17 - parseInt(TIMEZONE.split(':')[0]!)) % 24
 
 const CRON_WEEKLY = `0 ${CRON_MINUTE} ${CRON_HOUR} * * 1`
 

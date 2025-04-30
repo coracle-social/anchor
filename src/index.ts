@@ -2,6 +2,7 @@ import 'localstorage-polyfill'
 
 import { PORT } from './env.js'
 import { server } from './server.js'
+import { getAlertParams, getAlertError } from './alert.js'
 import { registerAlert } from './worker.js'
 import { migrate, getActiveAlerts } from './database.js'
 
@@ -19,6 +20,10 @@ migrate().then(async () => {
   })
 
   for (const alert of await getActiveAlerts()) {
-    registerAlert(alert)
+    if (await getAlertError(getAlertParams(alert))) {
+      console.log("did not register job", alert.address)
+    } else {
+      registerAlert(alert)
+    }
   }
 })

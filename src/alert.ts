@@ -2,12 +2,7 @@ import { CronExpressionParser } from 'cron-parser'
 import { tryCatch, int, HOUR, isPojo, fromPairs, removeNil, parseJson } from '@welshman/lib'
 import { Feed, ValidationError, validateFeed } from '@welshman/feeds'
 import type { SignedEvent } from '@welshman/util'
-import {
-  getTags,
-  getTagValues,
-  createEvent,
-  getTagValue,
-} from '@welshman/util'
+import { getTags, getTagValues, createEvent, getTagValue } from '@welshman/util'
 import { appSigner, NOTIFIER_STATUS } from './env.js'
 
 export type Alert = {
@@ -70,15 +65,16 @@ export const getAlertError = async ({ channel, cron, feeds, email }: AlertParams
     total += dates[i] - dates[i - 1]
   }
 
-  if (total / (dates.length - 1) < int(1, HOUR)) return "Requested notification interval is too short"
+  if (total / (dates.length - 1) < int(1, HOUR))
+    return 'Requested notification interval is too short'
   if (!email?.includes('@')) return 'Please provide a valid email address'
   if (feeds.length === 0) return 'At least one feed is required'
 
   const parsedFeeds = removeNil(feeds)
 
-  if (parsedFeeds.length < feeds.length) return "At least one feed is invalid (must be valid JSON)"
+  if (parsedFeeds.length < feeds.length) return 'At least one feed is invalid (must be valid JSON)'
 
-  const feedError = parsedFeeds.map(validateFeed).find(e => e instanceof ValidationError)
+  const feedError = parsedFeeds.map(validateFeed).find((e) => e instanceof ValidationError)
 
   if (feedError) return `At least one feed is invalid (${feedError.data.toLowerCase()}).`
 }
