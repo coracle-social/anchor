@@ -2,11 +2,11 @@ import './style.css'
 
 import m from "mithril"
 import {writable} from 'svelte/store'
-import {getJson, isPojo, removeNil, append, spec, parseJson, setJson, isNil, assoc, randomId, randomInt, TIMEZONE, replaceAt, removeAt} from '@welshman/lib'
+import {getJson, removeNil, spec, parseJson, setJson, assoc, randomId, randomInt, TIMEZONE, tryCatch} from '@welshman/lib'
 import {withGetter} from '@welshman/store'
-import {validateFeed, makeRelayFeed, makeIntersectionFeed, feedFromFilters, validateAuthorFeed, ValidationError, walkFeed, displayFeeds, Feed} from '@welshman/feeds'
-import {getAddress, normalizeRelayUrl, getTagValue, getTagValues, createEvent, DELETE, TrustedEvent, StampedEvent, Filter, isShareableRelayUrl} from '@welshman/util'
-import type {Socket} from '@welshman/net'
+import {Router} from '@welshman/router'
+import {validateFeed, ValidationError, displayFeeds, Feed} from '@welshman/feeds'
+import {getAddress, getRelaysFromList, RelayMode, readList, asDecryptedEvent, normalizeRelayUrl, getTagValue, getTagValues, createEvent, DELETE, TrustedEvent, StampedEvent, FEED, Address, getIdFilters, fromNostrURI, RELAYS} from '@welshman/util'
 import {load, publish, defaultSocketPolicies, makeSocketPolicyAuth} from '@welshman/net'
 import type {ISigner} from '@welshman/signer'
 import {Nip07Signer, decrypt} from '@welshman/signer'
@@ -16,6 +16,8 @@ import {Nip07Signer, decrypt} from '@welshman/signer'
 const NOTIFIER_PUBKEY = import.meta.env.VITE_NOTIFIER_PUBKEY
 
 const NOTIFIER_RELAY = normalizeRelayUrl(import.meta.env.VITE_NOTIFIER_RELAY)
+
+const INDEXER_RELAYS = import.meta.env.VITE_INDEXER_RELAYS.split(',').map(normalizeRelayUrl)
 
 const ALERT = 32830
 
@@ -50,22 +52,6 @@ const ARROW_LEFT_ICON = `
 <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`
 
-// Utilities
-
-const displayList = <T>(xs: T[], conj = "and", n = 6, locale = "en-US") => {
-  const stringItems = xs.map(String)
-
-  if (xs.length > n + 2) {
-    const formattedList = new Intl.ListFormat(locale, {style: "long", type: "unit"}).format(
-      stringItems.slice(0, n),
-    )
-
-    return `${formattedList}, ${conj} ${xs.length - n} others`
-  }
-
-  return new Intl.ListFormat(locale, {style: "long", type: "conjunction"}).format(stringItems)
-}
-
 // Types and state
 
 type Alert = {
@@ -79,8 +65,7 @@ type AlertStatus = {
 }
 
 type AlertValues = {
-  relays: string[]
-  filters: Filter[]
+  feedAddress: string
   cron: string
   email: string
 }
@@ -178,20 +163,19 @@ const deleteAlert = async (alert: Alert) => {
 }
 
 export type AlertParams = {
-  feed: Feed
+  feeds: Feed[]
   cron: string
   email: string
   bunker: string
   secret: string
 }
 
-export const makeAlert = async ({cron, email, feed, bunker, secret}: AlertParams) => {
+export const makeAlert = async ({cron, email, feeds, bunker, secret}: AlertParams) => {
   const {signer} = state.get()
 
   const tags = [
     ["cron", cron],
     ["email", email],
-    ["feed", JSON.stringify(feed)],
     ["channel", "email"],
     [
       "handler",
@@ -200,6 +184,10 @@ export const makeAlert = async ({cron, email, feed, bunker, secret}: AlertParams
       "web",
     ],
   ]
+
+  for (const feed of feeds) {
+    tags.push(["feed", JSON.stringify(feed)])
+  }
 
   if (bunker) {
     tags.push(["nip46", secret, bunker])
@@ -330,13 +318,12 @@ const AlertCreate = {
     state.update(assoc('alertDraft', {
       email: getTagValue('email', state.get().alerts[0]?.tags || []) || "",
       cron: CRON_DAILY,
-      relays: [],
-      filters: [],
+      feedAddress: "",
     }))
   },
   view: () => {
-    const {alertDraft, alertsLoading} = state.get()
-    const {email, relays, filters, cron} = alertDraft!
+    const {pubkey, alertDraft, alertsLoading} = state.get()
+    const {email, feedAddress, cron} = alertDraft!
 
     const update = (newValues: Partial<AlertValues>) => {
       state.update(assoc('alertDraft', {...alertDraft, ...newValues}))
@@ -345,34 +332,59 @@ const AlertCreate = {
     const submit = async (e: Event) => {
       e.preventDefault()
 
-      const invalidRelay = relays.findIndex(relay => !isShareableRelayUrl(relay))
-      const invalidFilter = filters.findIndex(filter => !isPojo(filter))
+      state.update(assoc('alertsLoading', true))
 
-      if (!email.includes("@")) {
-        alert("Please provide a valid email address")
-      } else if (relays.length === 0) {
-        alert("Please add at least one relay")
-      } else if (filters.length === 0) {
-        alert("Please add at least one filter")
-      } else if (invalidRelay > -1) {
-        alert(`Relay #${invalidRelay + 1} is invalid`)
-      } else if (invalidFilter > -1) {
-        alert(`Filter #${invalidFilter + 1} must be an object`)
-      } else {
-        state.update(assoc('alertsLoading', true))
+      try {
+        if (!email.includes("@")) return alert("Please provide a valid email address")
 
-        const feed = makeIntersectionFeed(makeRelayFeed(...relays), feedFromFilters(filters))
+        const address = tryCatch(() => Address.fromNaddr(fromNostrURI(feedAddress)))
 
-        try {
-          await publishAlert({cron, email, feed, bunker: '', secret: ''})
+        if (!address) return alert("Please provide a valid feed address")
+        if (address.kind !== FEED) return alert(`Please provide a valid feed address (kind ${FEED})`)
 
-          m.route.set("/alerts")
-        } catch (error) {
-          alert("Failed to create alert. Please try again.")
-          console.error('Error creating alert:', error)
-        } finally {
-          state.update(assoc('alertsLoading', false))
-        }
+        const selections = await load({
+          relays: INDEXER_RELAYS,
+          filters: [{kinds: [RELAYS], authors: [pubkey!, address.pubkey]}],
+        })
+
+        const router = Router.get()
+        const filters = getIdFilters([address.toString()])
+        const scenario = router.merge([
+          router.FromRelays(selections.flatMap(e => getRelaysFromList(readList(asDecryptedEvent(e)), RelayMode.Write))),
+          router.FromRelays(address.relays),
+          router.FromRelays(INDEXER_RELAYS),
+        ])
+        const relays = scenario.limit(10).getUrls()
+
+        console.log(selections.flatMap(e => getRelaysFromList(readList(asDecryptedEvent(e)), RelayMode.Write)))
+        console.log(address.relays)
+        console.log(INDEXER_RELAYS)
+        console.log(relays)
+
+        const [event] = await load({relays, filters})
+
+        if (!event) return alert("Sorry, we weren't able to find that feed")
+
+        const feedStrings = getTagValues('feed', event.tags)
+
+        if (feedStrings.length === 0) return alert('At least one feed is required')
+
+        const feeds = removeNil(feedStrings.map(parseJson))
+
+        if (feeds.length < feedStrings.length) return alert("At least one feed is invalid (must be valid JSON)")
+
+        const feedError = feeds.map(validateFeed).find(e => e instanceof ValidationError)
+
+        if (feedError) return alert(`At least one feed is invalid (${feedError.data.toLowerCase()}).`)
+
+        await publishAlert({cron, email, feeds, bunker: '', secret: ''})
+
+        m.route.set("/alerts")
+      } catch (error) {
+        alert("Failed to create alert. Please try again.")
+        console.error('Error creating alert:', error)
+      } finally {
+        state.update(assoc('alertsLoading', false))
       }
     }
 
@@ -409,58 +421,24 @@ const AlertCreate = {
             ])
           ]),
           m("div", [
-            m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Relays"),
+            m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Feed Address"),
             m("div", { class: "space-y-2" }, [
-              relays.map((relay, index) =>
-                m("div", { class: "flex items-center gap-2" }, [
-                  m("button", {
-                    onclick: () => update({relays: removeAt(index, relays)}),
-                    type: "button",
-                    title: "Remove relay",
-                    class: "text-gray-400 hover:text-gray-600"
-                  }, m.trust(TRASH_ICON)),
-                  m("input", {
-                    type: "text",
-                    placeholder: "wss://relay.example.com",
-                    value: relay,
-                    oninput: (e: InputEvent) => update({relays: replaceAt(index, (e.target as HTMLInputElement).value, relays)}),
-                    class: "flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
-                  })
-                ])
-              ),
-              m("button", {
-                onclick: () => update({relays: append("", relays)}),
-                type: "button",
-                class: "text-sm text-purple-600 hover:text-purple-800"
-              }, "+ Add Relay")
-            ])
-          ]),
-          m("div", [
-            m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Filters"),
-            m("div", { class: "space-y-2" }, [
-              filters.map((filter, index) =>
-                m("div", { class: "flex items-center gap-2" }, [
-                  m("button", {
-                    onclick: () => update({filters: removeAt(index, filters)}),
-                    type: "button",
-                    title: "Remove filter",
-                    class: "text-gray-400 hover:text-gray-600"
-                  }, m.trust(TRASH_ICON)),
-                  m("input", {
-                    type: "text",
-                    placeholder: "Enter a filter expression",
-                    value: filter ? JSON.stringify(filter) : "",
-                    onblur: (e: InputEvent) =>
-                      update({filters: replaceAt(index, parseJson((e.target as HTMLInputElement).value) || "", filters)}),
-                    class: "flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
-                  })
-                ])
-              ),
-              m("button", {
-                onclick: () => update({filters: append({}, filters)}),
-                type: "button",
-                class: "text-sm text-purple-600 hover:text-purple-800"
-              }, "+ Add Filter")
+              m("input", {
+                type: "text",
+                placeholder: "naddr1...",
+                value: feedAddress,
+                oninput: (e: InputEvent) => update({feedAddress: (e.target as HTMLInputElement).value}),
+                class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+              }),
+              m("p", { class: "text-sm text-gray-500" }, [
+                "Visit ",
+                m("a", {
+                  href: "https://coracle.social/feeds",
+                  target: "_blank",
+                  class: "text-purple-600 hover:text-purple-800"
+                }, "coracle.social/feeds"),
+                " to search for existing feeds or create a new one. Copy the feed address (starts with 'naddr1') and paste it here."
+              ])
             ])
           ]),
           m("div", { class: "flex justify-end" }, [
