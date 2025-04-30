@@ -68,6 +68,10 @@
       "@welshman/relay": "link:../welshman/packages/relay",
       "@welshman/store": "link:../welshman/packages/store",
       "@welshman/signer": "link:../welshman/packages/signer"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "bcrypt",
+      "sqlite3"
+    ]
   }
 }

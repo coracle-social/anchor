@@ -8,8 +8,5 @@ node remove-pnpm-overrides.js web/package.json
 pnpm i --no-frozen-lockfile
 (cd web && pnpm i --no-frozen-lockfile)
 
-# Approve builds
-pnpm approve-builds
-
 # Build everything
 pnpm run build
