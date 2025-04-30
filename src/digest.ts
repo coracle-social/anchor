@@ -56,6 +56,7 @@ import { Router, routerContext, getFilterSelections, makeSelection, addMinimalFa
 import { deriveEventsMapped, collection } from '@welshman/store'
 import {
   makeIntersectionFeed,
+  simplifyFeed,
   feedFromFilters,
   getFeedArgs,
   isScopeFeed,
@@ -157,7 +158,57 @@ export const getNetwork = (pubkey: string) => {
 export const getFollowers = (pubkey: string) =>
   uniq(pluck<string>('pubkey', repository.query([{ kinds: [FOLLOWS], '#p': [pubkey] }])))
 
-export const loadFeed = async (alert: Alert, feed: Feed) => {
+// Utilities for actually building the feed
+
+type DigestData = {
+  since: number
+  events: TrustedEvent[]
+  context: TrustedEvent[]
+}
+
+const loadData = async (alert: Alert) => {
+  await loadRelaySelections(alert.pubkey)
+
+  const { merge, Index, ForPubkey, Replies } = Router.get()
+  const { cron, feeds } = getAlertParams(alert)
+  const since = dateToSeconds(getCronDate(cron, -2))
+  const feed = simplifyFeed(makeIntersectionFeed(makeCreatedAtFeed({ since }), makeUnionFeed(...feeds)))
+
+  // Fetch the required data to populate our web of trust graph
+
+  let needsFollows = false
+  let needsFollowers = false
+  let needsNetwork = false
+
+  walkFeed(feed, f => {
+    needsFollows = needsFollows || isScopeFeed(f) && getFeedArgs(f).includes(Scope.Follows)
+    needsFollowers = needsFollowers || isScopeFeed(f) && getFeedArgs(f).includes(Scope.Followers)
+    needsNetwork = needsNetwork || isWOTFeed(f) || isScopeFeed(f) && getFeedArgs(f).includes(Scope.Network)
+  })
+
+  const wotPromises: Promise<any>[] = []
+
+  if (needsFollows || needsNetwork) {
+    wotPromises.push(loadFollows(alert.pubkey))
+  }
+
+  if (needsFollowers) {
+    wotPromises.push(
+      load({
+        filters: [{ kinds: [FOLLOWS], '#p': [alert.pubkey] }],
+        relays: merge([Index(), ForPubkey(alert.pubkey)]).getUrls(),
+      })
+    )
+  }
+
+  if (needsNetwork) {
+    wotPromises.push(...getFilterSelections([{ kinds: [FOLLOWS], authors: getFollows(alert.pubkey) }]).map(load))
+  }
+
+  await Promise.all(wotPromises)
+
+  // Load our feed events and any required context in one shot
+
   const seen = new Set<string>()
   const events: TrustedEvent[] = []
   const context: TrustedEvent[] = []
@@ -205,12 +256,15 @@ export const loadFeed = async (alert: Alert, feed: Feed) => {
       events.push(e)
       context.push(e)
 
-      const relays = Router.get().Replies(e).policy(addMinimalFallbacks).getUrls()
-      const filters = getReplyFilters(events, { kinds: [NOTE, COMMENT, REACTION] })
-
       promises.push(
         call(async () => {
-          for (const reply of await load({ relays, filters })) {
+          await loadRelaySelections(e.pubkey)
+          await loadProfile(e.pubkey)
+
+          const relays = Replies(e).policy(addMinimalFallbacks).getUrls()
+          const filters = getReplyFilters(events, { kinds: [NOTE, COMMENT, REACTION] })
+
+          for (const reply of await load({ relays, filters, signal: AbortSignal.timeout(1000) })) {
             if (!seen.has(reply.id)) {
               seen.add(reply.id)
               context.push(reply)
@@ -224,53 +278,7 @@ export const loadFeed = async (alert: Alert, feed: Feed) => {
   await ctrl.load(200)
   await Promise.all(promises)
 
-  return {events, context}
-}
-
-// Utilities for actually building the feed
-
-type DigestData = {
-  since: number
-  events: TrustedEvent[]
-  context: TrustedEvent[]
-}
-
-const fetchData = async (alert: Alert) => {
-  await loadRelaySelections(alert.pubkey)
-
-  const { merge, Index, ForPubkey } = Router.get()
-  const { cron, feeds } = getAlertParams(alert)
-  const since = dateToSeconds(getCronDate(cron, -2))
-  const feed = makeIntersectionFeed(makeCreatedAtFeed({ since }), makeUnionFeed(...feeds))
-
-  let needsFollows = false
-  let needsFollowers = false
-  let needsNetwork = false
-
-  walkFeed(feed, f => {
-    needsFollows = needsFollows || isScopeFeed(f) && getFeedArgs(f).includes(Scope.Follows)
-    needsFollowers = needsFollowers || isScopeFeed(f) && getFeedArgs(f).includes(Scope.Followers)
-    needsNetwork = needsNetwork || isWOTFeed(f) || isScopeFeed(f) && getFeedArgs(f).includes(Scope.Network)
-  })
-
-  if (needsFollows || needsNetwork) {
-    await loadFollows(alert.pubkey)
-  }
-
-  if (needsFollowers) {
-    await load({
-      filters: [{ kinds: [FOLLOWS], '#p': [alert.pubkey] }],
-      relays: merge([Index(), ForPubkey(alert.pubkey)]).getUrls(),
-    })
-  }
-
-  if (needsNetwork) {
-    await Promise.all(getFilterSelections([{ kinds: [FOLLOWS], authors: getFollows(alert.pubkey) }]).map(load))
-  }
-
-  const {events, context} = await loadFeed(alert, feed)
-
-  return { since, events, context } as DigestData
+  return {since, events, context} as DigestData
 }
 
 const loadHandler = async (alert: Alert) => {
@@ -295,14 +303,14 @@ const getFormatter = (alert: Alert) => {
   const { locale, timezone } = getAlertParams(alert)
 
   // Attempt to make a formatter with as many user-provided options as we can
-  for (const l of removeNil([locale, LOCALE])) {
-    for (const t of removeNil([timezone, TIMEZONE])) {
+  for (const _locale of removeNil([locale, LOCALE])) {
+    for (const _timezone of removeNil([timezone, TIMEZONE])) {
       const formatter = tryCatch(
         () =>
-          new Intl.DateTimeFormat(locale, {
+          new Intl.DateTimeFormat(_locale, {
             dateStyle: 'short',
             timeStyle: 'short',
-            timeZone: timezone,
+            timeZone: _timezone,
           })
       )
 
@@ -371,12 +379,6 @@ export const buildParameters = async (alert: Alert, data: DigestData) => {
   const handler = await loadHandler(alert)
   const repliesByParentId = groupBy(getParentId, context)
   const eventsByPubkey = groupBy((e) => e.pubkey, events)
-
-  await Promise.all(Array.from(eventsByPubkey.keys()).map(async pubkey => {
-    await loadRelaySelections(pubkey)
-    await loadProfile(pubkey)
-  }))
-
   const popular = sortBy((e) => -(repliesByParentId.get(e.id)?.length || 0), events).slice(0, 5)
   const popularIds = new Set(popular.map((e) => e.id))
   const topProfiles = sortBy(
@@ -394,7 +396,7 @@ export const buildParameters = async (alert: Alert, data: DigestData) => {
 }
 
 export const send = async (alert: Alert) => {
-  const data = await fetchData(alert)
+  const data = await loadData(alert)
 
   if (data.events.length > 0) {
     await sendDigest(alert, await buildParameters(alert, data))
