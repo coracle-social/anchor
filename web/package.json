@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "lint": "tsc --noEmit && eslint src"
+    "lint": "tsc --noEmit && eslint src",
+    "format": "eslint src --fix"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.1",
@@ -27,6 +28,7 @@
     "@welshman/util": "^0.2.1",
     "events": "^3.3.0",
     "mithril": "^2.2.15",
+    "qrcode": "^1.5.4",
     "svelte": "^5.27.2",
     "tailwindcss": "^4.1.4"
   },

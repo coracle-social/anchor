@@ -11,6 +11,7 @@ export default defineConfig([
   {
     files: ["src/**/*.{js,mjs,cjs,ts}"],
     rules: {
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {args: "none", destructuredArrayIgnorePattern: "^_d?$", caughtErrors: "none"},

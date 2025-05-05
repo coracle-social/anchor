@@ -1,6 +1,7 @@
 import './style.css'
 
 import m from "mithril"
+import QR from 'qrcode'
 import {writable} from 'svelte/store'
 import {getJson, insertAt, removeNil, spec, parseJson, setJson, assoc, randomId, randomInt, TIMEZONE, tryCatch, LOCALE} from '@welshman/lib'
 import {withGetter} from '@welshman/store'
@@ -9,7 +10,7 @@ import {validateFeed, ValidationError, displayFeeds, Feed} from '@welshman/feeds
 import {getAddress, getRelaysFromList, RelayMode, readList, asDecryptedEvent, normalizeRelayUrl, getTagValue, getTagValues, createEvent, DELETE, TrustedEvent, StampedEvent, FEED, Address, getIdFilters, fromNostrURI, RELAYS} from '@welshman/util'
 import {load, publish, defaultSocketPolicies, makeSocketPolicyAuth} from '@welshman/net'
 import type {ISigner} from '@welshman/signer'
-import {Nip07Signer, decrypt} from '@welshman/signer'
+import {Nip07Signer, Nip46Broker, Nip46ResponseWithResult, makeSecret, decrypt} from '@welshman/signer'
 
 // Constants
 
@@ -18,6 +19,12 @@ const NOTIFIER_PUBKEY = import.meta.env.VITE_NOTIFIER_PUBKEY
 const NOTIFIER_RELAY = normalizeRelayUrl(import.meta.env.VITE_NOTIFIER_RELAY)
 
 const INDEXER_RELAYS = import.meta.env.VITE_INDEXER_RELAYS.split(',').map(normalizeRelayUrl)
+
+const SIGNER_RELAYS = import.meta.env.VITE_SIGNER_RELAYS.split(',').map(normalizeRelayUrl)
+
+const PLATFORM_URL = window.origin
+const PLATFORM_NAME = "Anchor Alerts"
+const PLATFORM_LOGO = ""
 
 const ALERT = 32830
 
@@ -68,6 +75,9 @@ type AlertValues = {
   feedAddress: string
   cron: string
   email: string
+  bunker: string
+  secret: string
+  controller?: BunkerConnectController
 }
 
 type State = {
@@ -90,6 +100,50 @@ const state = withGetter(
     alertsLoading: false,
   } as State)
 )
+
+// Bunker connection
+
+class BunkerConnectController {
+  url = ""
+  bunker = ""
+  loading = false
+  clientSecret = makeSecret()
+  abortController = new AbortController()
+  broker = Nip46Broker.get({clientSecret: this.clientSecret, relays: SIGNER_RELAYS})
+  onNostrConnect: (response: Nip46ResponseWithResult) => void
+
+  constructor({onNostrConnect}: {onNostrConnect: (response: Nip46ResponseWithResult) => void}) {
+    this.onNostrConnect = onNostrConnect
+  }
+
+  async start() {
+    this.url = await this.broker.makeNostrconnectUrl({
+      url: PLATFORM_URL,
+      name: PLATFORM_NAME,
+      image: PLATFORM_LOGO,
+    })
+
+    let response
+    try {
+      response = await this.broker.waitForNostrconnect(this.url, this.abortController.signal)
+    } catch (errorResponse: any) {
+      if (errorResponse?.error) {
+        alert(`Received error from signer: ${errorResponse.error}`)
+      } else if (errorResponse) {
+        console.error(errorResponse)
+      }
+    }
+
+    if (response) {
+      this.loading = true
+      this.onNostrConnect(response)
+    }
+  }
+
+  stop() {
+    this.abortController.abort()
+  }
+}
 
 // Actions
 
@@ -315,20 +369,112 @@ const AlertList = {
   }
 }
 
+const QRCode = () => {
+  let canvas = null as HTMLCanvasElement | null
+  let wrapper = null as HTMLElement | null
+  let scale = 0.1
+  let height = 0
+
+  return {
+    oncreate: (vnode: m.VnodeDOM<{code: string}>) => {
+      canvas = vnode.dom.querySelector('canvas') as HTMLCanvasElement
+      wrapper = vnode.dom.querySelector('.qr-wrapper') as HTMLElement
+
+      console.log(canvas, wrapper)
+
+      if (canvas && wrapper) {
+        QR.toCanvas(canvas, vnode.attrs.code).then(() => {
+          const wrapperRect = wrapper.getBoundingClientRect()
+          const canvasRect = canvas.getBoundingClientRect()
+
+          scale = wrapperRect.width / (canvasRect.width * 10)
+          height = canvasRect.width * 10 * scale
+
+          wrapper.style.height = `${height}px`
+
+          m.redraw()
+        })
+      }
+    },
+    view: (vnode: m.VnodeDOM<{code: string}>) => {
+      const copy = e => {
+        e.preventDefault()
+        navigator.clipboard.writeText(vnode.attrs.code)
+        alert("URL copied to clipboard!")
+      }
+
+      return m("button", {
+        class: "max-w-full",
+        onclick: copy,
+      }, [
+        m("div", {
+          class: "qr-wrapper"
+        }, [
+          m("canvas", {
+            class: "rounded-box"
+          })
+        ])
+      ])
+    }
+  }
+}
+
+const BunkerConnect = {
+  view: () => {
+    const {url, stop} = state.get().alertDraft!.controller!
+
+    return m("div", { class: "card2 flex flex-col items-center gap-4 bg-base-300" }, [
+      m("p", "Scan using a nostr signer, or click to copy."),
+      m("div", { class: "flex justify-center" }, [
+        m(QRCode, { code: url })
+      ]),
+      m("button", {
+        class: "btn btn-neutral btn-sm",
+        onclick: stop
+      }, "Cancel")
+    ])
+  }
+}
+
 const AlertCreate = {
   oninit: () => {
     state.update(assoc('alertDraft', {
       email: getTagValue('email', state.get().alerts[0]?.tags || []) || "",
       cron: CRON_DAILY,
       feedAddress: "",
+      bunker: "",
+      secret: "",
     }))
   },
   view: () => {
     const {pubkey, alertDraft, alertsLoading} = state.get()
-    const {email, feedAddress, cron} = alertDraft!
+    const {email, feedAddress, cron, bunker, secret, controller} = alertDraft!
 
     const update = (newValues: Partial<AlertValues>) => {
       state.update(assoc('alertDraft', {...alertDraft, ...newValues}))
+    }
+
+    const showBunker = (e: Event) => {
+      e.preventDefault()
+
+      const controller = new BunkerConnectController({
+        onNostrConnect: (response: Nip46ResponseWithResult) => {
+          update({
+            controller: undefined,
+            bunker: controller.broker.getBunkerUrl(),
+            secret: controller.broker.params.clientSecret,
+          })
+        },
+      })
+
+      controller.start()
+
+      update({controller})
+    }
+
+    const clearBunker = (e: Event) => {
+      e.preventDefault()
+      update({ bunker: "", secret: "" })
     }
 
     const submit = async (e: Event) => {
@@ -358,11 +504,6 @@ const AlertCreate = {
         ])
         const relays = scenario.limit(10).getUrls()
 
-        console.log(selections.flatMap(e => getRelaysFromList(readList(asDecryptedEvent(e)), RelayMode.Write)))
-        console.log(address.relays)
-        console.log(INDEXER_RELAYS)
-        console.log(relays)
-
         const [event] = await load({relays, filters})
 
         if (!event) return alert("Sorry, we weren't able to find that feed")
@@ -379,7 +520,7 @@ const AlertCreate = {
 
         if (feedError) return alert(`At least one feed is invalid (${feedError.data.toLowerCase()}).`)
 
-        await publishAlert({cron, email, feeds, bunker: '', secret: ''})
+        await publishAlert({cron, email, feeds, bunker, secret})
 
         m.route.set("/alerts")
       } catch (error) {
@@ -442,6 +583,38 @@ const AlertCreate = {
                 " to search for existing feeds or create a new one. Copy the feed address (starts with 'naddr1') and paste it here."
               ])
             ])
+          ]),
+          controller ?
+          m("div", { class: "bg-gray-100 border border-gray-200 rounded-lg p-4 space-y-3" }, [
+              m(BunkerConnect)
+          ]) :
+          m("div", { class: "bg-gray-100 border border-gray-200 rounded-lg p-4 space-y-3" }, [
+            m("div", { class: "flex items-center justify-between" }, [
+              m("strong", "Connect a Bunker"),
+              m("span", {
+                class: `flex items-center gap-2 text-sm ${bunker ? 'text-purple-600' : 'text-gray-500'}`
+              }, [
+                bunker ? "Connected" : "Not Connected"
+              ])
+            ]),
+            m("p", { class: "text-sm text-gray-500" }, [
+              "Required for receiving alerts about spaces with access controls. You can get one from your ",
+              m("a", {
+                class: "text-purple-600 hover:text-purple-800",
+                href: 'https://nostrapps.com/#signers',
+                target: "_blank",
+              }, "remote signer app"),
+              "."
+            ]),
+            bunker ?
+              m("button", {
+                onclick: clearBunker,
+                class: "w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+              }, "Disconnect") :
+              m("button", {
+                onclick: showBunker,
+                class: "w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+              }, "Connect")
           ]),
           m("div", { class: "flex justify-end" }, [
             m("button", {
