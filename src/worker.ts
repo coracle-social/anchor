@@ -1,9 +1,8 @@
 import { CronJob } from 'cron'
-import { nth, assoc, nthEq } from '@welshman/lib'
-import { getIdFilters, getTagValue, getReplyFilters } from '@welshman/util'
+import { getTagValue } from '@welshman/util'
 import type { Alert } from './alert.js'
 import { getAlertParams, getStatusTags } from './alert.js'
-import * as digest from './digest.js'
+import { Digest } from './digest.js'
 
 const jobsByAddress = new Map()
 
@@ -21,8 +20,9 @@ export const runJob = async (alert: Alert) => {
     console.log('worker: job starting', alert.address)
 
     const now = Date.now()
+    const digest = new Digest(alert)
 
-    if (await digest.send(alert)) {
+    if (await digest.send()) {
       console.log('worker: job completed', alert.address, 'in', Date.now() - now, 'ms')
       return true
     } else {

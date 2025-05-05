@@ -1,3 +1,5 @@
+/* eslint @typescript-eslint/no-unused-vars: 0 */
+
 import sqlite3 from 'sqlite3'
 import crypto from 'crypto'
 import { instrument } from 'succinct-async'

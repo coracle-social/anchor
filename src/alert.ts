@@ -1,8 +1,15 @@
 import { CronExpressionParser } from 'cron-parser'
-import { tryCatch, int, HOUR, isPojo, fromPairs, removeNil, parseJson } from '@welshman/lib'
+import { tryCatch, int, HOUR, removeNil, parseJson } from '@welshman/lib'
 import { Feed, ValidationError, validateFeed } from '@welshman/feeds'
-import type { SignedEvent } from '@welshman/util'
-import { getTags, getTagValues, createEvent, getTagValue } from '@welshman/util'
+import { Nip46Broker } from '@welshman/signer'
+import {
+  getTags,
+  getTag,
+  getTagValues,
+  createEvent,
+  SignedEvent,
+  getTagValue,
+} from '@welshman/util'
 import { appSigner, NOTIFIER_STATUS } from './env.js'
 
 export type Alert = {
@@ -34,6 +41,18 @@ export type AlertParams = {
   locale?: string
   pause_until?: number
   timezone?: string
+}
+
+export const getAlertBroker = (alert: Alert) => {
+  const [_, clientSecret, bunkerUrl] = getTag('nip46', alert.tags) || []
+
+  if (bunkerUrl) {
+    const { signerPubkey, relays = [] } = Nip46Broker.parseBunkerUrl(bunkerUrl)
+
+    if (signerPubkey && relays.length > 0) {
+      return new Nip46Broker({ clientSecret, signerPubkey, relays })
+    }
+  }
 }
 
 export const getAlertParams = (alert: Alert): AlertParams => {

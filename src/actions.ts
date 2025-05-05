@@ -1,5 +1,5 @@
 import { instrument } from 'succinct-async'
-import { getTagValues, getAddress, SignedEvent } from '@welshman/util'
+import { getTagValues } from '@welshman/util'
 import { NOTIFIER_SUBSCRIPTION } from './env.js'
 import { Alert } from './alert.js'
 import * as mailer from './mailer.js'
