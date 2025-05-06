@@ -1,9 +1,4 @@
-import {
-  max,
-  inc,
-  pluck,
-  uniq,
-} from '@welshman/lib'
+import { max, inc, pluck, uniq } from '@welshman/lib'
 import {
   TrustedEvent,
   RELAYS,
@@ -19,19 +14,9 @@ import {
 } from '@welshman/util'
 import { load, LoadOptions } from '@welshman/net'
 import { Repository } from '@welshman/relay'
-import {
-  Router,
-  getFilterSelections,
-} from '@welshman/router'
+import { Router, getFilterSelections } from '@welshman/router'
 import { deriveEventsMapped, collection } from '@welshman/store'
-import {
-  getFeedArgs,
-  isScopeFeed,
-  walkFeed,
-  isWOTFeed,
-  Scope,
-  Feed,
-} from '@welshman/feeds'
+import { getFeedArgs, isScopeFeed, walkFeed, isWOTFeed, Scope, Feed } from '@welshman/feeds'
 
 // Utilities for loading data
 

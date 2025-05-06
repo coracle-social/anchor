@@ -232,7 +232,7 @@ export const makeAlert = async ({cron, email, feeds, bunker, secret}: AlertParam
     ["email", email],
     ["channel", "email"],
     ["locale", LOCALE],
-    ["timezone", insertAt(3, ':', Array.from(TIMEZONE.slice(3))).join('')],
+    ["timezone", TIMEZONE],
     [
       "handler",
       "31990:97c70a44366a6535c145b333f973ea86dfdc2d7a99da618c40c64705ad98e322:1685968093690",
@@ -380,24 +380,22 @@ const QRCode = () => {
       canvas = vnode.dom.querySelector('canvas') as HTMLCanvasElement
       wrapper = vnode.dom.querySelector('.qr-wrapper') as HTMLElement
 
-      console.log(canvas, wrapper)
-
       if (canvas && wrapper) {
         QR.toCanvas(canvas, vnode.attrs.code).then(() => {
-          const wrapperRect = wrapper.getBoundingClientRect()
-          const canvasRect = canvas.getBoundingClientRect()
+          const wrapperRect = wrapper!.getBoundingClientRect()
+          const canvasRect = canvas!.getBoundingClientRect()
 
           scale = wrapperRect.width / (canvasRect.width * 10)
           height = canvasRect.width * 10 * scale
 
-          wrapper.style.height = `${height}px`
+          wrapper!.style.height = `${height}px`
 
           m.redraw()
         })
       }
     },
     view: (vnode: m.VnodeDOM<{code: string}>) => {
-      const copy = e => {
+      const copy = (e: Event) => {
         e.preventDefault()
         navigator.clipboard.writeText(vnode.attrs.code)
         alert("URL copied to clipboard!")

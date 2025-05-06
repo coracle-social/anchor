@@ -37,10 +37,7 @@ import {
   defaultSocketPolicies,
   AdapterContext,
 } from '@welshman/net'
-import {
-  Router,
-  addMinimalFallbacks,
-} from '@welshman/router'
+import { Router, addMinimalFallbacks } from '@welshman/router'
 import { ISigner, Nip46Broker, Nip01Signer, Nip46Signer } from '@welshman/signer'
 import {
   makeIntersectionFeed,
@@ -68,6 +65,7 @@ type DigestData = {
 }
 
 export class Digest {
+  authd = new Set<string>()
   params: AlertParams
   broker?: Nip46Broker
   signer: ISigner
@@ -94,15 +92,28 @@ export class Digest {
   }
 
   makeSocket = (url: string) => {
-    return makeSocket(
+    const socket = makeSocket(
       url,
       defaultSocketPolicies.concat([
         makeSocketPolicyAuth({
-          sign: (e: StampedEvent) => this.signer.sign(e),
-          shouldAuth: () => Boolean(this.broker),
+          sign: this.signer.sign,
+          shouldAuth: () => {
+            // Only auth if we have the user's signer, and only auth once
+            if (this.broker && !this.authd.has(url)) {
+              return true
+            }
+
+            this.authd.add(url)
+
+            return false
+          },
         }),
       ])
     )
+
+    socket.auth.attemptAuth(this.signer.sign)
+
+    return socket
   }
 
   getFormatter = () => {
@@ -146,7 +157,12 @@ export class Digest {
   }
 
   loadData = async () => {
+    console.log(`digest: loading relay selections for ${this.alert.address}`)
+
     await loadRelaySelections(this.alert.pubkey)
+
+    console.log(`digest: loading web of trust for ${this.alert.address}`)
+
     await loadWot(this.alert.pubkey, this.feed)
 
     const seen = new Set<string>()
@@ -188,7 +204,12 @@ export class Digest {
     })
 
     await ctrl.load(200)
+
+    console.log(`digest: loading context for ${this.alert.address}`)
+
     await Promise.all(promises)
+
+    console.log(`digest: retrieved ${context.length} events for ${this.alert.address}`)
 
     return { events, context } as DigestData
   }
@@ -215,7 +236,7 @@ export class Digest {
     const handler = await this.loadHandler()
     const repliesByParentId = groupBy(getParentId, context)
     const eventsByPubkey = groupBy((e) => e.pubkey, events)
-    const popular = sortBy((e) => -(repliesByParentId.get(e.id)?.length || 0), events).slice(0, 5)
+    const popular = sortBy((e) => -(repliesByParentId.get(e.id)?.length || 0), events).slice(0, 12)
     const topProfiles = sortBy(
       ([k, ev]) => -ev.length,
       Array.from(eventsByPubkey.entries()).filter(([k]) => profilesByPubkey.get().get(k))

@@ -61,7 +61,6 @@ export const getAlertParams = (alert: Alert): AlertParams => {
     feeds: getTagValues('feed', alert.tags).map(parseJson),
     handlers: getTags('handler', alert.tags),
     channel: getTagValue('channel', alert.tags) as Channel,
-    bunker_url: getTagValue('cron', alert.tags),
     email: getTagValue('email', alert.tags),
     locale: getTagValue('locale', alert.tags),
     pause_until: parseInt(getTagValue('pause_until', alert.tags) || '') || 0,
