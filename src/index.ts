@@ -20,8 +20,10 @@ migrate().then(async () => {
   })
 
   for (const alert of await getActiveAlerts()) {
-    if (await getAlertError(getAlertParams(alert))) {
-      console.log('did not register job', alert.address)
+    const error = await getAlertError(getAlertParams(alert))
+
+    if (error) {
+      console.log('did not register job', alert.address, error)
     } else {
       registerAlert(alert)
     }

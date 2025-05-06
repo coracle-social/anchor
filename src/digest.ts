@@ -97,16 +97,7 @@ export class Digest {
       defaultSocketPolicies.concat([
         makeSocketPolicyAuth({
           sign: this.signer.sign,
-          shouldAuth: () => {
-            // Only auth if we have the user's signer, and only auth once
-            if (this.broker && !this.authd.has(url)) {
-              return true
-            }
-
-            this.authd.add(url)
-
-            return false
-          },
+          shouldAuth: () => Boolean(this.broker),
         }),
       ])
     )
@@ -203,9 +194,11 @@ export class Digest {
       },
     })
 
-    await ctrl.load(200)
+    console.log(`digest: loading events for ${this.alert.address}`)
 
-    console.log(`digest: loading context for ${this.alert.address}`)
+    await ctrl.load(1000)
+
+    console.log(`digest: loading replies and reactions for ${this.alert.address}`)
 
     await Promise.all(promises)
 

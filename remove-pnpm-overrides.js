@@ -14,7 +14,7 @@ const pkg = JSON.parse(fs.readFileSync(pkgName, "utf8"))
 if (pkg.pnpm && pkg.pnpm.overrides) {
   delete pkg.pnpm.overrides
   fs.writeFileSync(pkgName, JSON.stringify(pkg, null, 2) + "\n")
-  console.log("Removed pnpm.overrides from package.json")
+  console.log(`Removed pnpm.overrides from ${pkgName}`)
 } else {
-  console.log("No pnpm.overrides found in package.json")
+  console.log(`No pnpm.overrides found in ${pkgName}`)
 }
