@@ -26,7 +26,6 @@ import {
   REACTION,
   displayProfile,
   displayPubkey,
-  StampedEvent,
 } from '@welshman/util'
 import {
   Pool,
@@ -252,7 +251,7 @@ export class Digest {
     }
 
     this.pool.clear()
-    this.broker?.teardown()
+    this.broker?.cleanup()
 
     return data.events.length > 0
   }
