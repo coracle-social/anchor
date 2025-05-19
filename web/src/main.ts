@@ -30,13 +30,7 @@ const ALERT = 32830
 
 const ALERT_STATUS = 32831
 
-const CRON_MINUTE = randomInt(0, 59)
-
-const CRON_HOUR = (17 - parseInt(TIMEZONE.split(':')[0]!)) % 24
-
-const CRON_WEEKLY = `0 ${CRON_MINUTE} ${CRON_HOUR} * * 1`
-
-const CRON_DAILY = `0 ${CRON_MINUTE} ${CRON_HOUR} * * *`
+const TZ_OFFSET = parseInt(TIMEZONE.split(':')[0]!)
 
 const CRON_DAILY_PATTERN = /^0 \d{1,2} \d{1,2} \* \* \*$/
 
@@ -73,7 +67,8 @@ type AlertStatus = {
 
 type AlertValues = {
   feedAddress: string
-  cron: string
+  freq: string
+  time: string,
   email: string
   bunker: string
   secret: string
@@ -219,14 +214,19 @@ const deleteAlert = async (alert: Alert) => {
 
 export type AlertParams = {
   feeds: Feed[]
-  cron: string
+  freq: string
+  time: string
   email: string
   bunker: string
   secret: string
 }
 
-export const makeAlert = async ({cron, email, feeds, bunker, secret}: AlertParams) => {
+export const makeAlert = async ({freq, time, email, feeds, bunker, secret}: AlertParams) => {
   const {signer} = state.get()
+  const [hour, minute] = time.split(':')
+  const utcHour = (parseInt(hour) - TZ_OFFSET) % 24
+  const dow = freq === 'daily' ? '*' : freq
+  const cron = `0 ${minute} ${utcHour} * * ${dow}`
 
   const tags = [
     ["cron", cron],
@@ -439,7 +439,8 @@ const AlertCreate = {
   oninit: () => {
     state.update(assoc('alertDraft', {
       email: getTagValue('email', state.get().alerts[0]?.tags || []) || "",
-      cron: CRON_DAILY,
+      freq: 'daily',
+      time: '17:00',
       feedAddress: "",
       bunker: "",
       secret: "",
@@ -447,7 +448,7 @@ const AlertCreate = {
   },
   view: () => {
     const {pubkey, alertDraft, alertsLoading} = state.get()
-    const {email, feedAddress, cron, bunker, secret, controller} = alertDraft!
+    const {email, feedAddress, freq, time, bunker, secret, controller} = alertDraft!
 
     const update = (newValues: Partial<AlertValues>) => {
       state.update(assoc('alertDraft', {...alertDraft, ...newValues}))
@@ -519,7 +520,7 @@ const AlertCreate = {
 
         if (feedError) return alert(`At least one feed is invalid (${feedError.data.toLowerCase()}).`)
 
-        await publishAlert({cron, email, feeds, bunker, secret})
+        await publishAlert({freq, time, email, feeds, bunker, secret})
 
         m.route.set("/alerts")
       } catch (error) {
@@ -551,16 +552,33 @@ const AlertCreate = {
               class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
             })
           ]),
-          m("div", [
-            m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Frequency"),
-            m("select", {
-              value: cron,
-              onchange: (e: Event) => update({cron: (e.target as HTMLSelectElement).value}),
-              class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
-            }, [
-              m("option", { value: CRON_DAILY }, "Daily"),
-              m("option", { value: CRON_WEEKLY }, "Weekly (Mondays)")
-            ])
+          m("div", {class: "w-full flex gap-2"}, [
+            m("div", {class: "flex-grow"}, [
+              m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Frequency"),
+              m("select", {
+                value: freq,
+                onchange: (e: Event) => update({freq: (e.target as HTMLSelectElement).value}),
+                class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+              }, [
+                m("option", { value: 'daily' }, "Daily"),
+                m("option", { value: '0' }, "Weekly on Sunday"),
+                m("option", { value: '1' }, "Weekly on Monday"),
+                m("option", { value: '2' }, "Weekly on Tuesday"),
+                m("option", { value: '3' }, "Weekly on Wednesday"),
+                m("option", { value: '4' }, "Weekly on Thursday"),
+                m("option", { value: '5' }, "Weekly on Friday"),
+                m("option", { value: '6' }, "Weekly on Saturday"),
+              ])
+            ]),
+            m("div", [
+              m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Time"),
+              m("input", {
+                value: time,
+                onchange: (e: Event) => update({time: (e.target as HTMLSelectElement).value}),
+                type: "time",
+                class: "w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
+              })
+            ]),
           ]),
           m("div", [
             m("label", { class: "block text-sm font-medium text-gray-700 mb-1" }, "Feed Address"),
