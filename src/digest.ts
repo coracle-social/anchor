@@ -40,6 +40,7 @@ import { Router, addMinimalFallbacks } from '@welshman/router'
 import { ISigner, Nip46Broker, Nip01Signer, Nip46Signer } from '@welshman/signer'
 import {
   makeIntersectionFeed,
+  makeKindFeed,
   simplifyFeed,
   Feed,
   makeCreatedAtFeed,
@@ -86,7 +87,11 @@ export class Digest {
 
     this.since = dateToSeconds(getCronDate(cron, -2))
     this.feed = simplifyFeed(
-      makeIntersectionFeed(makeCreatedAtFeed({ since: this.since }), makeUnionFeed(...feeds))
+      makeIntersectionFeed(
+        makeKindFeed(NOTE),
+        makeCreatedAtFeed({ since: this.since }),
+        makeUnionFeed(...feeds)
+      )
     )
   }
 
