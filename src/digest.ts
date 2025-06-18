@@ -37,7 +37,7 @@ import {
   AdapterContext,
 } from '@welshman/net'
 import { Router, addMinimalFallbacks } from '@welshman/router'
-import { ISigner, Nip46Broker, Nip01Signer, Nip46Signer } from '@welshman/signer'
+import { ISigner, Nip01Signer } from '@welshman/signer'
 import {
   makeIntersectionFeed,
   makeKindFeed,
@@ -48,7 +48,7 @@ import {
   FeedController,
 } from '@welshman/feeds'
 import { getCronDate, displayDuration, createElement } from './util.js'
-import { getAlertParams, Alert, AlertParams, getAlertBroker } from './alert.js'
+import { getAlertParams, Alert, AlertParams } from './alert.js'
 import { sendDigest } from './mailer.js'
 import {
   profilesByPubkey,
@@ -67,7 +67,6 @@ type DigestData = {
 export class Digest {
   authd = new Set<string>()
   params: AlertParams
-  broker?: Nip46Broker
   signer: ISigner
   pool: Pool
   context: AdapterContext
@@ -77,8 +76,7 @@ export class Digest {
 
   constructor(readonly alert: Alert) {
     this.params = getAlertParams(alert)
-    this.broker = getAlertBroker(alert)
-    this.signer = this.broker ? new Nip46Signer(this.broker) : Nip01Signer.ephemeral()
+    this.signer = Nip01Signer.ephemeral()
     this.pool = new Pool({ makeSocket: this.makeSocket })
     this.context = { pool: this.pool }
     this.load = makeLoader({ delay: 1000, context: this.context })
@@ -101,7 +99,6 @@ export class Digest {
       defaultSocketPolicies.concat([
         makeSocketPolicyAuth({
           sign: this.signer.sign,
-          shouldAuth: () => Boolean(this.broker),
         }),
       ])
     )
@@ -256,7 +253,6 @@ export class Digest {
     }
 
     this.pool.clear()
-    this.broker?.cleanup()
 
     return data.events.length > 0
   }

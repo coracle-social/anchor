@@ -12,7 +12,6 @@
   "devDependencies": {
     "@eslint/js": "^9.25.1",
     "@types/mithril": "^2.2.7",
-    "@types/qrcode": "^1.5.5",
     "eslint": "^9.25.1",
     "globals": "^16.0.0",
     "typescript": "~5.7.2",
@@ -29,7 +28,6 @@
     "@welshman/util": "^0.2.2",
     "events": "^3.3.0",
     "mithril": "^2.2.15",
-    "qrcode": "^1.5.4",
     "svelte": "^5.27.2",
     "tailwindcss": "^4.1.4"
   },

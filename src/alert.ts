@@ -1,10 +1,8 @@
 import { CronExpressionParser } from 'cron-parser'
 import { tryCatch, int, HOUR, removeNil, parseJson } from '@welshman/lib'
 import { Feed, ValidationError, validateFeed } from '@welshman/feeds'
-import { Nip46Broker } from '@welshman/signer'
 import {
   getTags,
-  getTag,
   getTagValues,
   createEvent,
   SignedEvent,
@@ -36,23 +34,10 @@ export type AlertParams = {
   feeds: Feed[]
   handlers: string[][]
   channel: Channel
-  bunker_url?: string
   email?: string
   locale?: string
   pause_until?: number
   timezone?: string
-}
-
-export const getAlertBroker = (alert: Alert) => {
-  const [_, clientSecret, bunkerUrl] = getTag('nip46', alert.tags) || []
-
-  if (bunkerUrl) {
-    const { signerPubkey, relays = [] } = Nip46Broker.parseBunkerUrl(bunkerUrl)
-
-    if (signerPubkey && relays.length > 0) {
-      return new Nip46Broker({ clientSecret, signerPubkey, relays })
-    }
-  }
 }
 
 export const getAlertParams = (alert: Alert): AlertParams => {
