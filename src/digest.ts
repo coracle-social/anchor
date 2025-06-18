@@ -37,7 +37,6 @@ import {
   AdapterContext,
 } from '@welshman/net'
 import { Router, addMinimalFallbacks } from '@welshman/router'
-import { ISigner, Nip01Signer } from '@welshman/signer'
 import {
   makeIntersectionFeed,
   makeKindFeed,
@@ -58,6 +57,7 @@ import {
   makeGetPubkeysForWOTRange,
   loadWot,
 } from './repository.js'
+import {appSigner} from './env.js'
 
 type DigestData = {
   events: TrustedEvent[]
@@ -67,7 +67,6 @@ type DigestData = {
 export class Digest {
   authd = new Set<string>()
   params: AlertParams
-  signer: ISigner
   pool: Pool
   context: AdapterContext
   load: Loader
@@ -76,7 +75,6 @@ export class Digest {
 
   constructor(readonly alert: Alert) {
     this.params = getAlertParams(alert)
-    this.signer = Nip01Signer.ephemeral()
     this.pool = new Pool({ makeSocket: this.makeSocket })
     this.context = { pool: this.pool }
     this.load = makeLoader({ delay: 1000, context: this.context })
@@ -98,12 +96,12 @@ export class Digest {
       url,
       defaultSocketPolicies.concat([
         makeSocketPolicyAuth({
-          sign: this.signer.sign,
+          sign: appSigner.sign,
         }),
       ])
     )
 
-    socket.auth.attemptAuth(this.signer.sign)
+    socket.auth.attemptAuth(appSigner.sign)
 
     return socket
   }
@@ -163,7 +161,7 @@ export class Digest {
     const promises: Promise<unknown>[] = []
     const ctrl = new FeedController({
       feed: this.feed,
-      signer: this.signer,
+      signer: appSigner,
       context: this.context,
       getPubkeysForScope: makeGetPubkeysForScope(this.alert.pubkey),
       getPubkeysForWOTRange: makeGetPubkeysForWOTRange(this.alert.pubkey),
