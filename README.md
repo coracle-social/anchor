@@ -142,9 +142,3 @@ status=$(nak decrypt -p $pubkey $status_ciphertext)
 
 echo $status
 ```
-
-# TODO
-
-- [ ] Serve deletes
-- [ ] Add timezone and locale
-- [ ] Use handlers correctly

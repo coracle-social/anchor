@@ -17,6 +17,7 @@ import {
 } from '@welshman/lib'
 import { parse, truncate, renderAsHtml } from '@welshman/content'
 import {
+  SignedEvent,
   TrustedEvent,
   getParentId,
   getIdFilters,
@@ -24,8 +25,11 @@ import {
   NOTE,
   COMMENT,
   REACTION,
+  AUTH_JOIN,
   displayProfile,
   displayPubkey,
+  makeEvent,
+  normalizeRelayUrl,
 } from '@welshman/util'
 import {
   Pool,
@@ -57,7 +61,7 @@ import {
   makeGetPubkeysForWOTRange,
   loadWot,
 } from './repository.js'
-import {appSigner} from './env.js'
+import { appSigner } from './env.js'
 
 type DigestData = {
   events: TrustedEvent[]
@@ -65,6 +69,7 @@ type DigestData = {
 }
 
 export class Digest {
+  claims = new Map<string, SignedEvent>()
   authd = new Set<string>()
   params: AlertParams
   pool: Pool
@@ -101,7 +106,11 @@ export class Digest {
       ])
     )
 
-    socket.auth.attemptAuth(appSigner.sign)
+    const claim = this.claims.get(url)
+
+    if (claim) {
+      socket.send(['EVENT', claim])
+    }
 
     return socket
   }
@@ -244,6 +253,14 @@ export class Digest {
   }
 
   send = async () => {
+    // Prepare our claims in advance so we can send them immediately on connect
+    for (const [_, url, claim] of this.params.claims) {
+      const template = makeEvent(AUTH_JOIN, { tags: [['claim', claim]] })
+      const event = await appSigner.sign(template)
+
+      this.claims.set(normalizeRelayUrl(url), event)
+    }
+
     const data = await this.loadData()
 
     if (data.events.length > 0) {

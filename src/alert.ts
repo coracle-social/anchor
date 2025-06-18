@@ -1,13 +1,7 @@
 import { CronExpressionParser } from 'cron-parser'
 import { tryCatch, int, HOUR, removeNil, parseJson } from '@welshman/lib'
 import { Feed, ValidationError, validateFeed } from '@welshman/feeds'
-import {
-  getTags,
-  getTagValues,
-  createEvent,
-  SignedEvent,
-  getTagValue,
-} from '@welshman/util'
+import { getTags, getTagValues, makeEvent, SignedEvent, getTagValue } from '@welshman/util'
 import { appSigner, NOTIFIER_STATUS } from './env.js'
 
 export type Alert = {
@@ -32,6 +26,7 @@ export enum Channel {
 export type AlertParams = {
   cron: string
   feeds: Feed[]
+  claims: string[][]
   handlers: string[][]
   channel: Channel
   email?: string
@@ -44,6 +39,7 @@ export const getAlertParams = (alert: Alert): AlertParams => {
   return {
     cron: getTagValue('cron', alert.tags) || '0 0 0 0 0 0',
     feeds: getTagValues('feed', alert.tags).map(parseJson),
+    claims: getTags('claim', alert.tags),
     handlers: getTags('handler', alert.tags),
     channel: getTagValue('channel', alert.tags) as Channel,
     email: getTagValue('email', alert.tags),
@@ -115,7 +111,7 @@ export const getStatusTags = async (alert: Alert) => {
 
 export const createStatusEvent = async (alert: Alert) =>
   appSigner.sign(
-    createEvent(NOTIFIER_STATUS, {
+    makeEvent(NOTIFIER_STATUS, {
       content: await appSigner.nip44.encrypt(
         alert.pubkey,
         JSON.stringify(await getStatusTags(alert))
