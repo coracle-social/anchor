@@ -51,7 +51,7 @@ import {
   FeedController,
 } from '@welshman/feeds'
 import { getCronDate, displayDuration, createElement } from './util.js'
-import { getAlertParams, Alert, AlertParams } from './alert.js'
+import { EmailAlert } from './alert.js'
 import { sendDigest } from './mailer.js'
 import {
   profilesByPubkey,
@@ -71,27 +71,22 @@ type DigestData = {
 export class Digest {
   claims = new Map<string, SignedEvent>()
   authd = new Set<string>()
-  params: AlertParams
   pool: Pool
   context: AdapterContext
   load: Loader
   since: number
   feed: Feed
 
-  constructor(readonly alert: Alert) {
-    this.params = getAlertParams(alert)
+  constructor(readonly alert: EmailAlert) {
     this.pool = new Pool({ makeSocket: this.makeSocket })
     this.context = { pool: this.pool }
     this.load = makeLoader({ delay: 1000, context: this.context })
-
-    const { cron, feeds } = this.params
-
-    this.since = dateToSeconds(getCronDate(cron, -2))
+    this.since = dateToSeconds(getCronDate(alert.cron, -2))
     this.feed = simplifyFeed(
       makeIntersectionFeed(
         makeKindFeed(NOTE),
         makeCreatedAtFeed({ since: this.since }),
-        makeUnionFeed(...feeds)
+        makeUnionFeed(...alert.feeds)
       )
     )
   }
@@ -117,8 +112,8 @@ export class Digest {
 
   getFormatter = () => {
     // Attempt to make a formatter with as many user-provided options as we can
-    for (const locale of removeNil([this.params.locale, LOCALE])) {
-      for (const timezone of removeNil([this.params.timezone, TIMEZONE])) {
+    for (const locale of removeNil([this.alert.locale, LOCALE])) {
+      for (const timezone of removeNil([this.alert.timezone, TIMEZONE])) {
         const formatter = tryCatch(
           () =>
             new Intl.DateTimeFormat(locale, {
@@ -138,9 +133,8 @@ export class Digest {
   }
 
   loadHandler = async () => {
-    const { handlers } = getAlertParams(this.alert)
     const defaultHandler = 'https://coracle.social/'
-    const webHandlers = handlers.filter(nthEq(3, 'web'))
+    const webHandlers = this.alert.handlers.filter(nthEq(3, 'web'))
     const filters = getIdFilters(webHandlers.map(nth(1)))
     const relays = webHandlers.map(nth(2))
 
@@ -254,7 +248,7 @@ export class Digest {
 
   send = async () => {
     // Prepare our claims in advance so we can send them immediately on connect
-    for (const [_, url, claim] of this.params.claims) {
+    for (const [_, url, claim] of this.alert.claims) {
       const template = makeEvent(AUTH_JOIN, { tags: [['claim', claim]] })
       const event = await appSigner.sign(template)
 

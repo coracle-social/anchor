@@ -1,7 +1,6 @@
 import { instrument } from 'succinct-async'
-import { getTagValues } from '@welshman/util'
-import { NOTIFIER_SUBSCRIPTION } from './env.js'
-import { Alert } from './alert.js'
+import { getTagValues, ALERT_REQUEST_EMAIL, ALERT_REQUEST_PUSH } from '@welshman/util'
+import { Alert, isEmailAlert } from './alert.js'
 import * as mailer from './mailer.js'
 import * as worker from './worker.js'
 import * as db from './database.js'
@@ -17,7 +16,7 @@ export type AddAlertParams = Pick<Alert, 'event' | 'tags'>
 export const addAlert = instrument('actions.addAlert', async ({ event, tags }: AddAlertParams) => {
   const alert = await db.insertAlert(event, tags)
 
-  if (alert.email.includes('@')) {
+  if (isEmailAlert(alert) && alert.email.includes('@')) {
     await mailer.sendConfirm(alert)
   }
 
@@ -60,7 +59,7 @@ export const processDelete = instrument(
     for (const address of getTagValues('a', event.tags)) {
       const [kind, pubkey] = address.split(':')
 
-      if (parseInt(kind) !== NOTIFIER_SUBSCRIPTION) {
+      if (![ALERT_REQUEST_EMAIL, ALERT_REQUEST_PUSH].includes(parseInt(kind))) {
         continue
       }
 

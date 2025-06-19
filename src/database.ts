@@ -3,8 +3,17 @@
 import sqlite3 from 'sqlite3'
 import crypto from 'crypto'
 import { instrument } from 'succinct-async'
-import { SignedEvent, getTagValue, getAddress } from '@welshman/util'
-import type { Alert } from './alert.js'
+import { parseJson } from '@welshman/lib'
+import {
+  SignedEvent,
+  getTagValue,
+  getTagValues,
+  getTags,
+  getAddress,
+  ALERT_REQUEST_EMAIL,
+  ALERT_REQUEST_PUSH,
+} from '@welshman/util'
+import type { BaseAlert, Alert, EmailAlert, PushAlert } from './alert.js'
 
 const db = new sqlite3.Database('anchor.db')
 
@@ -80,7 +89,31 @@ export const migrate = () =>
 
 const parseAlert = (row: any): Alert | undefined => {
   if (row) {
-    return { ...row, event: JSON.parse(row.event), tags: JSON.parse(row.tags) }
+    const event = JSON.parse(row.event)
+    const tags = JSON.parse(row.tags)
+    const feeds = getTagValues('feed', tags).map(parseJson)
+    const claims = getTags('claim', tags)
+    const locale = getTagValue('locale', tags)
+    const timezone = getTagValue('timezone', tags)
+    const pause_until = parseInt(getTagValue('pause_until', tags) || '') || 0
+    const alert = { ...row, event, tags, feeds, claims, locale, timezone, pause_until }
+
+    if (event.kind === ALERT_REQUEST_EMAIL) {
+      const cron = getTagValue('cron', tags) || '0 0 0 0 0 0'
+      const handlers = getTags('handler', tags)
+      const email = getTagValue('email', tags)
+
+      return { ...alert, cron, handlers, email } as EmailAlert
+    }
+
+    if (event.kind === ALERT_REQUEST_PUSH) {
+      const push_token = getTagValue('token', tags)
+      const platform = getTagValue('platform', tags)
+
+      return { ...alert, push_token, platform } as PushAlert
+    }
+
+    throw new Error(`Unable to parse alert of kind ${event.kind}`)
   }
 }
 
@@ -114,21 +147,21 @@ export async function insertAlert(event: SignedEvent, tags: string[][]) {
 
 export const confirmAlert = instrument('database.confirmAlert', async (token: string) => {
   return parseAlert(
-    await get<Alert>(
+    await get<BaseAlert>(
       `UPDATE alerts SET confirmed_at = unixepoch()
        WHERE token = ? AND confirmed_at IS NULL RETURNING *`,
       [token]
     )
-  )
+  ) as EmailAlert
 })
 
 export const unsubscribeAlert = instrument('database.unsubscribeAlert', async (token: string) => {
   return parseAlert(
-    await get<Alert>(
+    await get<BaseAlert>(
       `UPDATE alerts SET unsubscribed_at = unixepoch() WHERE token = ? RETURNING *`,
       [token]
     )
-  )
+  ) as EmailAlert
 })
 
 export const deleteAlert = instrument(

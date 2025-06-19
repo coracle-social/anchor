@@ -1,4 +1,5 @@
 import { last } from '@welshman/lib'
+import { isEmailAlert } from './alert.js'
 import { getAlert } from './database.js'
 import { runJob } from './worker.js'
 
@@ -13,10 +14,17 @@ getAlert(address)
   .then((alert) => {
     if (!alert) {
       console.error('Invalid alert address')
-      process.exit(1)
+
+      return false
     }
 
-    return runJob(alert)
+    if (isEmailAlert(alert)) {
+      return runJob(alert)
+    }
+
+    console.log('Invalid alert type', alert)
+
+    return false
   })
   .then((success) => {
     process.exit(success ? 0 : 1)

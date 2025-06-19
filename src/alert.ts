@@ -1,13 +1,12 @@
 import { CronExpressionParser } from 'cron-parser'
-import { tryCatch, int, HOUR, removeNil, parseJson } from '@welshman/lib'
+import { tryCatch, int, HOUR, removeNil } from '@welshman/lib'
 import { Feed, ValidationError, validateFeed } from '@welshman/feeds'
-import { getTags, getTagValues, makeEvent, SignedEvent, getTagValue } from '@welshman/util'
-import { appSigner, NOTIFIER_STATUS } from './env.js'
+import { makeEvent, SignedEvent, ALERT_STATUS, ALERT_REQUEST_EMAIL, ALERT_REQUEST_PUSH } from '@welshman/util'
+import { appSigner } from './env.js'
 
-export type Alert = {
+export type BaseAlert = {
   address: string
   pubkey: string
-  email: string
   event: SignedEvent
   tags: string[][]
   token: string
@@ -17,70 +16,78 @@ export type Alert = {
   unsubscribed_at?: number
 }
 
-export enum Channel {
-  None = 'none',
-  Push = 'push',
-  Email = 'email',
-}
-
-export type AlertParams = {
-  cron: string
+export type Alert = BaseAlert & {
   feeds: Feed[]
   claims: string[][]
-  handlers: string[][]
-  channel: Channel
-  email?: string
   locale?: string
-  pause_until?: number
   timezone?: string
+  pause_until?: number
 }
 
-export const getAlertParams = (alert: Alert): AlertParams => {
-  return {
-    cron: getTagValue('cron', alert.tags) || '0 0 0 0 0 0',
-    feeds: getTagValues('feed', alert.tags).map(parseJson),
-    claims: getTags('claim', alert.tags),
-    handlers: getTags('handler', alert.tags),
-    channel: getTagValue('channel', alert.tags) as Channel,
-    email: getTagValue('email', alert.tags),
-    locale: getTagValue('locale', alert.tags),
-    pause_until: parseInt(getTagValue('pause_until', alert.tags) || '') || 0,
-    timezone: getTagValue('timezone', alert.tags),
-  }
+export type EmailAlert = Alert & {
+  cron: string
+  email: string
+  handlers: string[][]
 }
 
-export const getAlertError = async ({ channel, cron, feeds, email }: AlertParams) => {
-  if (channel !== Channel.Email) return 'Only email notifications are currently supported.'
-  if (!cron) return 'Immediate notifications are not currently supported.'
+export type PushAlert = Alert & {
+  push_token: string
+  platform: string
+}
 
-  const interval = tryCatch(() => CronExpressionParser.parse(cron, { strict: true }))
+export const isEmailAlert = (alert: Alert): alert is EmailAlert =>
+  alert.event.kind === ALERT_REQUEST_EMAIL
 
-  if (!interval) return `Cron expression "${cron}" is invalid`
+export const isPushAlert = (alert: Alert): alert is PushAlert =>
+  alert.event.kind === ALERT_REQUEST_PUSH
 
-  const dates = interval.take(10).map((d) => d.toDate().valueOf() / 1000)
+export const getAlertError = async (alert: Alert) => {
+  if (isEmailAlert(alert)) {
+    if (!alert.cron) {
+      return 'Immediate notifications are not currently supported.'
+    }
 
-  let total = 0
-  for (let i = 1; i < dates.length; i++) {
-    total += dates[i] - dates[i - 1]
+    const interval = tryCatch(() => CronExpressionParser.parse(alert.cron, { strict: true }))
+
+    if (!interval) {
+      return `Cron expression "${alert.cron}" is invalid`
+    }
+
+    const dates = interval.take(10).map((d) => d.toDate().valueOf() / 1000)
+
+    let total = 0
+    for (let i = 1; i < dates.length; i++) {
+      total += dates[i] - dates[i - 1]
+    }
+
+    if (total / (dates.length - 1) < int(1, HOUR)) {
+      return 'Requested notification interval is too short'
+    }
+
+    if (!alert.email?.includes('@')) {
+      return 'Please provide a valid email address'
+    }
   }
 
-  if (total / (dates.length - 1) < int(1, HOUR))
-    return 'Requested notification interval is too short'
-  if (!email?.includes('@')) return 'Please provide a valid email address'
-  if (feeds.length === 0) return 'At least one feed is required'
+  if (alert.feeds.length === 0) {
+    return 'At least one feed is required'
+  }
 
-  const parsedFeeds = removeNil(feeds)
+  const parsedFeeds = removeNil(alert.feeds)
 
-  if (parsedFeeds.length < feeds.length) return 'At least one feed is invalid (must be valid JSON)'
+  if (parsedFeeds.length < alert.feeds.length) {
+    return 'At least one feed is invalid (must be valid JSON)'
+  }
 
   const feedError = parsedFeeds.map(validateFeed).find((e) => e instanceof ValidationError)
 
-  if (feedError) return `At least one feed is invalid (${feedError.data.toLowerCase()}).`
+  if (feedError) {
+    return `At least one feed is invalid (${feedError.data.toLowerCase()}).`
+  }
 }
 
 export const getStatusTags = async (alert: Alert) => {
-  const params = getAlertParams(alert)
-  const error = await getAlertError(params)
+  const error = await getAlertError(alert)
 
   if (error) {
     return [
@@ -111,7 +118,7 @@ export const getStatusTags = async (alert: Alert) => {
 
 export const createStatusEvent = async (alert: Alert) =>
   appSigner.sign(
-    makeEvent(NOTIFIER_STATUS, {
+    makeEvent(ALERT_STATUS, {
       content: await appSigner.nip44.encrypt(
         alert.pubkey,
         JSON.stringify(await getStatusTags(alert))

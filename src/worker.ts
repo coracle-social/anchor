@@ -1,12 +1,11 @@
 import { CronJob } from 'cron'
 import { getTagValue } from '@welshman/util'
-import type { Alert } from './alert.js'
-import { getAlertParams, getStatusTags } from './alert.js'
+import { getStatusTags, isEmailAlert, Alert, EmailAlert } from './alert.js'
 import { Digest } from './digest.js'
 
 const jobsByAddress = new Map()
 
-export const runJob = async (alert: Alert) => {
+export const runJob = async (alert: EmailAlert) => {
   try {
     const statusTags = await getStatusTags(alert)
     const status = getTagValue('status', statusTags)
@@ -35,15 +34,13 @@ export const runJob = async (alert: Alert) => {
   }
 }
 
-const createJob = (alert: Alert) => {
-  const { cron } = getAlertParams(alert)
-
+const createJob = (alert: EmailAlert) => {
   const run = async () => {
     await runJob(alert)
   }
 
   return CronJob.from({
-    cronTime: cron,
+    cronTime: alert.cron,
     onTick: run,
     start: true,
     timeZone: 'UTC',
@@ -51,15 +48,19 @@ const createJob = (alert: Alert) => {
 }
 
 export const registerAlert = (alert: Alert) => {
-  jobsByAddress.get(alert.address)?.stop()
-  jobsByAddress.set(alert.address, createJob(alert))
+  if (isEmailAlert(alert)) {
+    jobsByAddress.get(alert.address)?.stop()
+    jobsByAddress.set(alert.address, createJob(alert))
+  }
 
   console.log('registered job', alert.address)
 }
 
 export const unregisterAlert = (alert: Alert) => {
-  jobsByAddress.get(alert.address)?.stop()
-  jobsByAddress.delete(alert.address)
+  if (isEmailAlert(alert)) {
+    jobsByAddress.get(alert.address)?.stop()
+    jobsByAddress.delete(alert.address)
+  }
 
   console.log('unregistered job', alert.address)
 }

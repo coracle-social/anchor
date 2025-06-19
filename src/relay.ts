@@ -5,13 +5,16 @@ import { parseJson, gt, pluck, ago, MINUTE, randomId } from '@welshman/lib'
 import type { SignedEvent, Filter } from '@welshman/util'
 import {
   DELETE,
+  CLIENT_AUTH,
+  ALERT_REQUEST_PUSH,
+  ALERT_REQUEST_EMAIL,
   getAddress,
   matchFilters,
   getTagValue,
   getTagValues,
   verifyEvent,
 } from '@welshman/util'
-import { appSigner, NOTIFIER_SUBSCRIPTION } from './env.js'
+import { appSigner } from './env.js'
 import { getAlertsForPubkey, getAlert } from './database.js'
 import { addAlert, processDelete } from './actions.js'
 import { createStatusEvent } from './alert.js'
@@ -81,7 +84,7 @@ export class Connection {
       return this.send(['OK', event.id, false, 'invalid signature'])
     }
 
-    if (event.kind !== 22242) {
+    if (event.kind !== CLIENT_AUTH) {
       return this.send(['OK', event.id, false, 'invalid kind'])
     }
 
@@ -140,8 +143,10 @@ export class Connection {
     try {
       if (event.kind === DELETE) {
         await this.handleDelete(event)
-      } else if (event.kind === NOTIFIER_SUBSCRIPTION) {
-        await this.handleNotifierAlert(event)
+      } else if (event.kind === ALERT_REQUEST_EMAIL) {
+        await this.handleAlertRequest(event)
+      } else if (event.kind === ALERT_REQUEST_PUSH) {
+        await this.handleAlertRequest(event)
       } else {
         this.send(['OK', event.id, false, 'Event kind not accepted'])
       }
@@ -157,7 +162,7 @@ export class Connection {
     this.send(['OK', event.id, true, ''])
   }
 
-  private async handleNotifierAlert(event: SignedEvent) {
+  private async handleAlertRequest(event: SignedEvent) {
     const pubkey = await appSigner.getPubkey()
 
     if (!getTagValues('p', event.tags).includes(pubkey)) {

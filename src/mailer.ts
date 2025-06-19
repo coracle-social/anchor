@@ -1,11 +1,11 @@
 import { ServerClient } from 'postmark'
 import { POSTMARK_SENDER_ADDRESS, POSTMARK_API_KEY, ANCHOR_NAME, ANCHOR_URL } from './env.js'
-import { Alert } from './alert.js'
+import { EmailAlert } from './alert.js'
 import { render } from './templates.js'
 
 const client = new ServerClient(POSTMARK_API_KEY)
 
-export const sendConfirm = ({ email, token }: Alert) => {
+export const sendConfirm = ({ email, token }: EmailAlert) => {
   const href = `${ANCHOR_URL}/confirm?email=${encodeURIComponent(email)}&token=${token}`
 
   return client.sendEmail({
@@ -21,7 +21,7 @@ export const sendConfirm = ({ email, token }: Alert) => {
   })
 }
 
-export const sendDigest = async ({ email, token }: Alert, variables: Record<string, any>) => {
+export const sendDigest = async ({ email, token }: EmailAlert, variables: Record<string, any>) => {
   return client.sendEmail({
     From: POSTMARK_SENDER_ADDRESS,
     To: email,
