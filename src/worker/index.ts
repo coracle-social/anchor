@@ -3,6 +3,8 @@ import { addListener, removeListener } from './push.js'
 import { addJob, removeJob } from './email.js'
 
 export const registerAlert = (alert: Alert) => {
+  console.log('registering job', alert.address)
+
   if (isEmailAlert(alert)) {
     addJob(alert)
   }
@@ -10,11 +12,11 @@ export const registerAlert = (alert: Alert) => {
   if (isPushAlert(alert)) {
     addListener(alert)
   }
-
-  console.log('registered job', alert.address)
 }
 
 export const unregisterAlert = (alert: Alert) => {
+  console.log('unregistering job', alert.address)
+
   if (isEmailAlert(alert)) {
     removeJob(alert)
   }
@@ -22,6 +24,4 @@ export const unregisterAlert = (alert: Alert) => {
   if (isPushAlert(alert)) {
     removeListener(alert)
   }
-
-  console.log('unregistered job', alert.address)
 }

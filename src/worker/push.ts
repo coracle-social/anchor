@@ -108,7 +108,7 @@ const createListener = (alert: PushAlert) => {
     return controller.listen()
   })
 
-  return {stop: async () => call(await promise)}
+  return {stop: () => promise.then(call)}
 }
 
 export const addListener = (alert: PushAlert) => {

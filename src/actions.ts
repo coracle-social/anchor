@@ -9,7 +9,7 @@ import {
 } from '@welshman/util'
 import { Pool } from '@welshman/net'
 import { appSigner } from './env.js'
-import { Alert, isEmailAlert } from './alert.js'
+import { Alert, isEmailAlert, isPushAlert } from './alert.js'
 import * as mailer from './mailer.js'
 import * as worker from './worker/index.js'
 import * as db from './database.js'
@@ -28,6 +28,12 @@ export const addAlert = instrument('actions.addAlert', async ({ event, tags }: A
   // Send confirmation email if we need to
   if (isEmailAlert(alert) && alert.email.includes('@')) {
     await mailer.sendConfirm(alert)
+  }
+
+  // Confirm the alert immediately if it's push
+  if (isPushAlert(alert)) {
+    db.confirmAlert(alert.token)
+    worker.registerAlert(alert)
   }
 
   // Request access to any relays using provided invite codes
