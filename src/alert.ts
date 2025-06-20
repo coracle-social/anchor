@@ -1,7 +1,13 @@
 import { CronExpressionParser } from 'cron-parser'
-import { tryCatch, int, HOUR, removeNil } from '@welshman/lib'
+import { tryCatch, int, HOUR, removeNil, LOCALE, TIMEZONE } from '@welshman/lib'
 import { Feed, ValidationError, validateFeed } from '@welshman/feeds'
-import { makeEvent, SignedEvent, ALERT_STATUS, ALERT_REQUEST_EMAIL, ALERT_REQUEST_PUSH } from '@welshman/util'
+import {
+  makeEvent,
+  SignedEvent,
+  ALERT_STATUS,
+  ALERT_REQUEST_EMAIL,
+  ALERT_REQUEST_PUSH,
+} from '@welshman/util'
 import { appSigner } from './env.js'
 
 export type BaseAlert = {
@@ -18,7 +24,6 @@ export type BaseAlert = {
 
 export type Alert = BaseAlert & {
   feeds: Feed[]
-  claims: string[][]
   locale?: string
   timezone?: string
   pause_until?: number
@@ -116,6 +121,28 @@ export const getStatusTags = async (alert: Alert) => {
   ]
 }
 
+export const getFormatter = (alert: Alert) => {
+  // Attempt to make a formatter with as many user-provided options as we can
+  for (const locale of removeNil([alert.locale, LOCALE])) {
+    for (const timezone of removeNil([alert.timezone, TIMEZONE])) {
+      const formatter = tryCatch(
+        () =>
+          new Intl.DateTimeFormat(locale, {
+            dateStyle: 'short',
+            timeStyle: 'short',
+            timeZone: timezone,
+          })
+      )
+
+      if (formatter) {
+        return formatter
+      }
+    }
+  }
+
+  throw new Error("This should never happen, it's here only because of typescript")
+}
+
 export const createStatusEvent = async (alert: Alert) =>
   appSigner.sign(
     makeEvent(ALERT_STATUS, {
@@ -129,3 +156,4 @@ export const createStatusEvent = async (alert: Alert) =>
       ],
     })
   )
+

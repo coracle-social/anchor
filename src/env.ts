@@ -3,6 +3,7 @@ import { always } from '@welshman/lib'
 import { normalizeRelayUrl } from '@welshman/util'
 import { Nip01Signer } from '@welshman/signer'
 import { routerContext } from '@welshman/router'
+import { makeSocketPolicyAuth, defaultSocketPolicies } from '@welshman/net'
 
 if (!process.env.ANCHOR_URL) throw new Error('ANCHOR_URL is not defined.')
 if (!process.env.ANCHOR_NAME) throw new Error('ANCHOR_NAME is not defined.')
@@ -29,3 +30,9 @@ export const PORT = process.env.PORT
 routerContext.getDefaultRelays = always(DEFAULT_RELAYS)
 routerContext.getIndexerRelays = always(INDEXER_RELAYS)
 routerContext.getSearchRelays = always(SEARCH_RELAYS)
+
+defaultSocketPolicies.push(
+  makeSocketPolicyAuth({
+    sign: appSigner.sign,
+  }),
+)

@@ -1,7 +1,7 @@
 import { last } from '@welshman/lib'
 import { isEmailAlert } from './alert.js'
 import { getAlert } from './database.js'
-import { runJob } from './worker.js'
+import { runJob } from './worker/email.js'
 
 const address = last(process.argv)
 

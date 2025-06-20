@@ -1,8 +1,17 @@
 import { instrument } from 'succinct-async'
-import { getTagValues, ALERT_REQUEST_EMAIL, ALERT_REQUEST_PUSH } from '@welshman/util'
+import {
+  getTags,
+  getTagValues,
+  makeEvent,
+  AUTH_JOIN,
+  ALERT_REQUEST_EMAIL,
+  ALERT_REQUEST_PUSH,
+} from '@welshman/util'
+import { Pool } from '@welshman/net'
+import { appSigner } from './env.js'
 import { Alert, isEmailAlert } from './alert.js'
 import * as mailer from './mailer.js'
-import * as worker from './worker.js'
+import * as worker from './worker/index.js'
 import * as db from './database.js'
 
 export class ActionError extends Error {
@@ -16,8 +25,17 @@ export type AddAlertParams = Pick<Alert, 'event' | 'tags'>
 export const addAlert = instrument('actions.addAlert', async ({ event, tags }: AddAlertParams) => {
   const alert = await db.insertAlert(event, tags)
 
+  // Send confirmation email if we need to
   if (isEmailAlert(alert) && alert.email.includes('@')) {
     await mailer.sendConfirm(alert)
+  }
+
+  // Request access to any relays using provided invite codes
+  for (const [_, url, claim] of getTags('claim', alert.tags)) {
+    const template = makeEvent(AUTH_JOIN, { tags: [['claim', claim]] })
+    const event = await appSigner.sign(template)
+
+    Pool.get().get(url).send(['EVENT', event])
   }
 
   return alert

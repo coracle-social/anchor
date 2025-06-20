@@ -4,7 +4,7 @@ import { PORT } from './env.js'
 import { server } from './server.js'
 import { getAlertError } from './alert.js'
 import { migrate, getActiveAlerts } from './database.js'
-import { registerAlert } from './worker.js'
+import { registerAlert } from './worker/index.js'
 
 process.on('unhandledRejection', (error: Error) => {
   console.log(error.stack)

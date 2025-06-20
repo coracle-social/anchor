@@ -1,11 +1,7 @@
 import { neventEncode, decode } from 'nostr-tools/nip19'
 import {
-  tryCatch,
-  LOCALE,
-  TIMEZONE,
   spec,
   call,
-  removeNil,
   now,
   sortBy,
   groupBy,
@@ -17,7 +13,6 @@ import {
 } from '@welshman/lib'
 import { parse, truncate, renderAsHtml } from '@welshman/content'
 import {
-  SignedEvent,
   TrustedEvent,
   getParentId,
   getIdFilters,
@@ -25,21 +20,10 @@ import {
   NOTE,
   COMMENT,
   REACTION,
-  AUTH_JOIN,
   displayProfile,
   displayPubkey,
-  makeEvent,
-  normalizeRelayUrl,
 } from '@welshman/util'
-import {
-  Pool,
-  makeLoader,
-  Loader,
-  makeSocketPolicyAuth,
-  makeSocket,
-  defaultSocketPolicies,
-  AdapterContext,
-} from '@welshman/net'
+import { load } from '@welshman/net'
 import { Router, addMinimalFallbacks } from '@welshman/router'
 import {
   makeIntersectionFeed,
@@ -51,7 +35,7 @@ import {
   FeedController,
 } from '@welshman/feeds'
 import { getCronDate, displayDuration, createElement } from './util.js'
-import { EmailAlert } from './alert.js'
+import { EmailAlert, getFormatter } from './alert.js'
 import { sendDigest } from './mailer.js'
 import {
   profilesByPubkey,
@@ -69,18 +53,11 @@ type DigestData = {
 }
 
 export class Digest {
-  claims = new Map<string, SignedEvent>()
   authd = new Set<string>()
-  pool: Pool
-  context: AdapterContext
-  load: Loader
   since: number
   feed: Feed
 
   constructor(readonly alert: EmailAlert) {
-    this.pool = new Pool({ makeSocket: this.makeSocket })
-    this.context = { pool: this.pool }
-    this.load = makeLoader({ delay: 1000, context: this.context })
     this.since = dateToSeconds(getCronDate(alert.cron, -2))
     this.feed = simplifyFeed(
       makeIntersectionFeed(
@@ -89,47 +66,6 @@ export class Digest {
         makeUnionFeed(...alert.feeds)
       )
     )
-  }
-
-  makeSocket = (url: string) => {
-    const socket = makeSocket(
-      url,
-      defaultSocketPolicies.concat([
-        makeSocketPolicyAuth({
-          sign: appSigner.sign,
-        }),
-      ])
-    )
-
-    const claim = this.claims.get(url)
-
-    if (claim) {
-      socket.send(['EVENT', claim])
-    }
-
-    return socket
-  }
-
-  getFormatter = () => {
-    // Attempt to make a formatter with as many user-provided options as we can
-    for (const locale of removeNil([this.alert.locale, LOCALE])) {
-      for (const timezone of removeNil([this.alert.timezone, TIMEZONE])) {
-        const formatter = tryCatch(
-          () =>
-            new Intl.DateTimeFormat(locale, {
-              dateStyle: 'short',
-              timeStyle: 'short',
-              timeZone: timezone,
-            })
-        )
-
-        if (formatter) {
-          return formatter
-        }
-      }
-    }
-
-    throw new Error("This should never happen, it's here only because of typescript")
   }
 
   loadHandler = async () => {
@@ -142,7 +78,7 @@ export class Digest {
       return defaultHandler
     }
 
-    const events = await this.load({ relays, filters })
+    const events = await load({ relays, filters })
     const getTemplates = (e: TrustedEvent) => e.tags.filter(nthEq(0, 'web')).map(nth(1))
     const templates = events.flatMap((e) => getTemplates(e))
 
@@ -165,7 +101,6 @@ export class Digest {
     const ctrl = new FeedController({
       feed: this.feed,
       signer: appSigner,
-      context: this.context,
       getPubkeysForScope: makeGetPubkeysForScope(this.alert.pubkey),
       getPubkeysForWOTRange: makeGetPubkeysForWOTRange(this.alert.pubkey),
       onEvent: (e) => {
@@ -181,7 +116,7 @@ export class Digest {
             const relays = Router.get().Replies(e).policy(addMinimalFallbacks).getUrls()
             const filters = getReplyFilters(events, { kinds: [NOTE, COMMENT, REACTION] })
 
-            for (const reply of await this.load({
+            for (const reply of await load({
               relays,
               filters,
               signal: AbortSignal.timeout(1000),
@@ -227,7 +162,7 @@ export class Digest {
     }
 
     const { events, context } = data
-    const formatter = this.getFormatter()
+    const formatter = getFormatter(this.alert)
     const handler = await this.loadHandler()
     const repliesByParentId = groupBy(getParentId, context)
     const eventsByPubkey = groupBy((e) => e.pubkey, events)
@@ -247,21 +182,11 @@ export class Digest {
   }
 
   send = async () => {
-    // Prepare our claims in advance so we can send them immediately on connect
-    for (const [_, url, claim] of this.alert.claims) {
-      const template = makeEvent(AUTH_JOIN, { tags: [['claim', claim]] })
-      const event = await appSigner.sign(template)
-
-      this.claims.set(normalizeRelayUrl(url), event)
-    }
-
     const data = await this.loadData()
 
     if (data.events.length > 0) {
       await sendDigest(this.alert, await this.buildParameters(data))
     }
-
-    this.pool.clear()
 
     return data.events.length > 0
   }

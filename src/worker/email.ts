@@ -1,7 +1,7 @@
 import { CronJob } from 'cron'
 import { getTagValue } from '@welshman/util'
-import { getStatusTags, isEmailAlert, Alert, EmailAlert } from './alert.js'
-import { Digest } from './digest.js'
+import { getStatusTags, EmailAlert } from '../alert.js'
+import { Digest } from '../digest.js'
 
 const jobsByAddress = new Map()
 
@@ -47,20 +47,12 @@ const createJob = (alert: EmailAlert) => {
   })
 }
 
-export const registerAlert = (alert: Alert) => {
-  if (isEmailAlert(alert)) {
-    jobsByAddress.get(alert.address)?.stop()
-    jobsByAddress.set(alert.address, createJob(alert))
-  }
-
-  console.log('registered job', alert.address)
+export const addJob = (alert: EmailAlert) => {
+  jobsByAddress.get(alert.address)?.stop()
+  jobsByAddress.set(alert.address, createJob(alert))
 }
 
-export const unregisterAlert = (alert: Alert) => {
-  if (isEmailAlert(alert)) {
-    jobsByAddress.get(alert.address)?.stop()
-    jobsByAddress.delete(alert.address)
-  }
-
-  console.log('unregistered job', alert.address)
+export const removeJob = (alert: EmailAlert) => {
+  jobsByAddress.get(alert.address)?.stop()
+  jobsByAddress.delete(alert.address)
 }
