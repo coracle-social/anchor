@@ -4,12 +4,10 @@ import {
   getTagValues,
   makeEvent,
   AUTH_JOIN,
-  ALERT_REQUEST_EMAIL,
-  ALERT_REQUEST_PUSH,
 } from '@welshman/util'
 import { Pool } from '@welshman/net'
 import { appSigner } from './env.js'
-import { Alert, isEmailAlert, isPushAlert } from './alert.js'
+import { Alert, alertKinds, isEmailAlert, isPushAlert } from './alert.js'
 import * as mailer from './mailer.js'
 import * as worker from './worker/index.js'
 import * as db from './database.js'
@@ -83,7 +81,7 @@ export const processDelete = instrument(
     for (const address of getTagValues('a', event.tags)) {
       const [kind, pubkey] = address.split(':')
 
-      if (![ALERT_REQUEST_EMAIL, ALERT_REQUEST_PUSH].includes(parseInt(kind))) {
+      if (!alertKinds.includes(parseInt(kind))) {
         continue
       }
 

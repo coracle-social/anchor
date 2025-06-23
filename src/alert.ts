@@ -5,10 +5,14 @@ import {
   makeEvent,
   SignedEvent,
   ALERT_STATUS,
-  ALERT_REQUEST_EMAIL,
-  ALERT_REQUEST_PUSH,
+  ALERT_EMAIL,
+  ALERT_WEB,
+  ALERT_IOS,
+  ALERT_ANDROID,
 } from '@welshman/util'
 import { appSigner } from './env.js'
+
+export const alertKinds = [ALERT_EMAIL, ALERT_WEB, ALERT_IOS, ALERT_ANDROID]
 
 export type BaseAlert = {
   address: string
@@ -20,6 +24,8 @@ export type BaseAlert = {
   deleted_at?: number
   confirmed_at?: number
   unsubscribed_at?: number
+  failed_at?: number
+  failed_reason?: string
 }
 
 export type Alert = BaseAlert & {
@@ -35,18 +41,40 @@ export type EmailAlert = Alert & {
   handlers: string[][]
 }
 
-export type PushAlert = Alert & {
-  push_token: string
-  platform: string
+export type WebAlert = Alert & {
+  endpoint: string
+  p256dh: string
+  auth: string
 }
 
+export type IosAlert = Alert & {
+}
+
+export type AndroidAlert = Alert & {
+}
+
+export type PushAlert = WebAlert | IosAlert | AndroidAlert
+
 export const isEmailAlert = (alert: Alert): alert is EmailAlert =>
-  alert.event.kind === ALERT_REQUEST_EMAIL
+  alert.event.kind === ALERT_EMAIL
+
+export const isWebAlert = (alert: Alert): alert is WebAlert =>
+  alert.event.kind === ALERT_WEB
+
+export const isIosAlert = (alert: Alert): alert is IosAlert =>
+  alert.event.kind === ALERT_IOS
+
+export const isAndroidAlert = (alert: Alert): alert is AndroidAlert =>
+  alert.event.kind === ALERT_ANDROID
 
 export const isPushAlert = (alert: Alert): alert is PushAlert =>
-  alert.event.kind === ALERT_REQUEST_PUSH
+  isWebAlert(alert) || isIosAlert(alert) || isAndroidAlert(alert)
 
 export const getAlertError = async (alert: Alert) => {
+  if (alert.failed_reason) {
+    return alert.failed_reason
+  }
+
   if (isEmailAlert(alert)) {
     if (!alert.cron) {
       return 'Immediate notifications are not currently supported.'

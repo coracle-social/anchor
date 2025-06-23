@@ -1,3 +1,8 @@
+import webpush from 'web-push'
+import { call, on } from '@welshman/lib'
+import { Tracker } from '@welshman/net'
+import { getFilterId, TrustedEvent } from '@welshman/util'
+import { simplifyFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
 import {AbstractAdapter, AdapterEvent, SocketEvent, isRelayEvent, isRelayEose, isRelayClosed, RelayMessage, ClientMessage, Socket, isClientReq, isClientClose, ClientMessageType} from '@welshman/net'
 import {
   loadRelaySelections,
@@ -5,11 +10,8 @@ import {
   makeGetPubkeysForWOTRange,
   loadWot,
 } from '../repository.js'
-import { PushAlert } from '../alert.js'
-import { getFilterId } from '@welshman/util'
-import { call, on } from '@welshman/lib'
-import { TrustedEvent } from '@welshman/util'
-import { simplifyFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
+import { PushAlert, WebAlert, IosAlert, AndroidAlert, isWebAlert, isIosAlert, isAndroidAlert } from '../alert.js'
+import { failAlert } from '../database.js'
 import { appSigner } from '../env.js'
 
 const listenersByAddress = new Map()
@@ -81,7 +83,42 @@ export class MultiplexingAdapter extends AbstractAdapter {
   }
 }
 
+const sendWebNotification = async (alert: WebAlert, event: TrustedEvent, relays: string[]) => {
+  try {
+    const subscription = {
+      endpoint: alert.endpoint,
+      keys: {
+        auth: alert.auth,
+        p256dh: alert.p256dh,
+      },
+    }
+
+    const payload = JSON.stringify({
+      title: "New activity!",
+      body: "You have received a new notification",
+      relays,
+      event,
+    })
+
+    await webpush.sendNotification(subscription, payload)
+
+    console.log(`Web push notification sent to ${alert.address}`)
+  } catch (error: any) {
+    console.error(`Failed to send web push notification to ${alert.address}:`, error)
+    failAlert(alert.address, error.body || String(error))
+    removeListener(alert)
+  }
+}
+
+const sendIosNotification = (alert: IosAlert, event: TrustedEvent, relays: string[]) => {
+}
+
+const sendAndroidNotification = (alert: AndroidAlert, event: TrustedEvent, relays: string[]) => {
+}
+
 const createListener = (alert: PushAlert) => {
+  const tracker = new Tracker()
+
   const feed = simplifyFeed(makeUnionFeed(...alert.feeds))
 
   const promise = call(async () => {
@@ -97,11 +134,18 @@ const createListener = (alert: PushAlert) => {
 
     const controller = new FeedController({
       feed,
+      tracker,
       signer: appSigner,
       getPubkeysForScope: makeGetPubkeysForScope(alert.pubkey),
       getPubkeysForWOTRange: makeGetPubkeysForWOTRange(alert.pubkey),
       onEvent: (event: TrustedEvent) => {
-        console.log(`listener: received event ${event.id} for ${alert.address}`)
+        if (event.pubkey === alert.pubkey) return
+
+        const relays = Array.from(tracker.getRelays(event.id))
+
+        if (isWebAlert(alert)) sendWebNotification(alert, event, relays)
+        if (isIosAlert(alert)) sendIosNotification(alert, event, relays)
+        if (isAndroidAlert(alert)) sendAndroidNotification(alert, event, relays)
       },
     })
 

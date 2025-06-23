@@ -6,8 +6,6 @@ import type { SignedEvent, Filter } from '@welshman/util'
 import {
   DELETE,
   CLIENT_AUTH,
-  ALERT_REQUEST_PUSH,
-  ALERT_REQUEST_EMAIL,
   getAddress,
   matchFilters,
   getTagValue,
@@ -17,7 +15,7 @@ import {
 import { appSigner } from './env.js'
 import { getAlertsForPubkey, getAlert } from './database.js'
 import { addAlert, processDelete } from './actions.js'
-import { createStatusEvent } from './alert.js'
+import { alertKinds, createStatusEvent } from './alert.js'
 
 type AuthState = {
   challenge: string
@@ -143,9 +141,7 @@ export class Connection {
     try {
       if (event.kind === DELETE) {
         await this.handleDelete(event)
-      } else if (event.kind === ALERT_REQUEST_EMAIL) {
-        await this.handleAlertRequest(event)
-      } else if (event.kind === ALERT_REQUEST_PUSH) {
+      } else if (alertKinds.includes(event.kind)) {
         await this.handleAlertRequest(event)
       } else {
         this.send(['OK', event.id, false, 'Event kind not accepted'])

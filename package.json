@@ -18,6 +18,7 @@
     "@types/mjml": "^4.7.4",
     "@types/mustache": "^4.2.5",
     "@types/sanitize-html": "^2.13.0",
+    "@types/web-push": "^3.6.3",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
@@ -54,6 +55,7 @@
     "sqlite3": "^5.1.7",
     "succinct-async": "^1.0.4",
     "ts-node-dev": "^2.0.0",
+    "web-push": "^3.6.7",
     "ws": "^8.13.0"
   },
   "pnpm": {

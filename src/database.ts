@@ -3,17 +3,19 @@
 import sqlite3 from 'sqlite3'
 import crypto from 'crypto'
 import { instrument } from 'succinct-async'
-import { parseJson } from '@welshman/lib'
+import { parseJson, now } from '@welshman/lib'
 import {
   SignedEvent,
   getTagValue,
   getTagValues,
   getTags,
   getAddress,
-  ALERT_REQUEST_EMAIL,
-  ALERT_REQUEST_PUSH,
+  ALERT_EMAIL,
+  ALERT_WEB,
+  ALERT_IOS,
+  ALERT_ANDROID,
 } from '@welshman/util'
-import type { BaseAlert, Alert, EmailAlert, PushAlert } from './alert.js'
+import type { BaseAlert, Alert, EmailAlert, WebAlert, IosAlert, AndroidAlert } from './alert.js'
 
 const db = new sqlite3.Database('anchor.db')
 
@@ -59,30 +61,47 @@ async function assertResult<T>(p: T | Promise<T>) {
 
 // Migrations
 
+const addColumnIfNotExists = async (tableName: string, columnName: string, columnDef: string) => {
+  try {
+    const tableInfo = await all(`PRAGMA table_info(${tableName})`)
+    const columnExists = tableInfo.some((col: any) => col.name === columnName)
+
+    if (!columnExists) {
+      await run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`)
+    }
+  } catch (err: any) {
+    if (!err.message.includes('duplicate column name')) {
+      throw err
+    }
+  }
+}
+
 export const migrate = () =>
-  new Promise<void>((resolve, reject) => {
-    db.serialize(() => {
-      db.run(
-        `
-        CREATE TABLE IF NOT EXISTS alerts (
-          address TEXT PRIMARY KEY,
-          pubkey TEXT NOT NULL,
-          email TEXT NOT NULL,
-          event JSON NOT NULL,
-          tags JSON NOT NULL,
-          token TEXT NOT NULL,
-          created_at INTEGER NOT NULL,
-          deleted_at INTEGER,
-          confirmed_at INTEGER,
-          unsubscribed_at INTEGER
-        )
-      `,
-        (err) => {
-          if (err) reject(err)
-          else resolve()
-        }
-      )
-    })
+  new Promise<void>(async (resolve, reject) => {
+    try {
+      db.serialize(async () => {
+        await run(
+          `
+          CREATE TABLE IF NOT EXISTS alerts (
+            address TEXT PRIMARY KEY,
+            pubkey TEXT NOT NULL,
+            email TEXT NOT NULL,
+            event JSON NOT NULL,
+            tags JSON NOT NULL,
+            token TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            deleted_at INTEGER,
+            confirmed_at INTEGER,
+            unsubscribed_at INTEGER
+          )
+        `)
+        await addColumnIfNotExists('alerts', 'failed_at', 'INTEGER')
+        await addColumnIfNotExists('alerts', 'failed_reason', 'TEXT')
+        resolve()
+      })
+    } catch (err) {
+      reject(err)
+    }
   })
 
 // Alerts
@@ -98,7 +117,7 @@ const parseAlert = (row: any): Alert | undefined => {
     const pause_until = parseInt(getTagValue('pause_until', tags) || '') || 0
     const alert = { ...row, event, tags, feeds, claims, locale, timezone, pause_until }
 
-    if (event.kind === ALERT_REQUEST_EMAIL) {
+    if (event.kind === ALERT_EMAIL) {
       const cron = getTagValue('cron', tags) || '0 0 0 0 0 0'
       const handlers = getTags('handler', tags)
       const email = getTagValue('email', tags)
@@ -106,11 +125,20 @@ const parseAlert = (row: any): Alert | undefined => {
       return { ...alert, cron, handlers, email } as EmailAlert
     }
 
-    if (event.kind === ALERT_REQUEST_PUSH) {
-      const push_token = getTagValue('token', tags)
-      const platform = getTagValue('platform', tags)
+    if (event.kind === ALERT_WEB) {
+      const endpoint = getTagValue('endpoint', tags)
+      const p256dh = getTagValue('p256dh', tags)
+      const auth = getTagValue('auth', tags)
 
-      return { ...alert, push_token, platform } as PushAlert
+      return { ...alert, endpoint, p256dh, auth } as WebAlert
+    }
+
+    if (event.kind === ALERT_IOS) {
+      return alert as IosAlert
+    }
+
+    if (event.kind === ALERT_ANDROID) {
+      return alert as AndroidAlert
     }
 
     throw new Error(`Unable to parse alert of kind ${event.kind}`)
@@ -170,6 +198,19 @@ export const deleteAlert = instrument(
     return parseAlert(
       await get(`UPDATE alerts SET deleted_at = ? WHERE address = ? RETURNING *`, [
         deleted_at,
+        address,
+      ])
+    )
+  }
+)
+
+export const failAlert = instrument(
+  'database.failAlert',
+  async (address: string, reason: string) => {
+    return parseAlert(
+      await get(`UPDATE alerts SET failed_at = ?, failed_reason = ? WHERE address = ? RETURNING *`, [
+        now(),
+        reason,
         address,
       ])
     )
