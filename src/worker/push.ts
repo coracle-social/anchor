@@ -1,6 +1,8 @@
 import webpush from 'web-push'
+import fcm from 'firebase-admin'
 import { call, on } from '@welshman/lib'
-import { Tracker } from '@welshman/net'
+import { Tracker, Pool } from '@welshman/net'
+import {parse, renderAsText} from '@welshman/content'
 import { getFilterId, TrustedEvent } from '@welshman/util'
 import { simplifyFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
 import {AbstractAdapter, AdapterEvent, SocketEvent, isRelayEvent, isRelayEose, isRelayClosed, RelayMessage, ClientMessage, Socket, isClientReq, isClientClose, ClientMessageType} from '@welshman/net'
@@ -15,12 +17,19 @@ import { failAlert } from '../database.js'
 import { appSigner } from '../env.js'
 
 const listenersByAddress = new Map()
+const subIdsByFilterIdByUrl = new Map<string, Map<string, Set<string>>>()
 
 export class MultiplexingAdapter extends AbstractAdapter {
-  subIdsByFilterId = new Map<string, Set<string>>()
+  subIdsByFilterId: Map<string, Set<string>>
 
   constructor(readonly socket: Socket) {
     super()
+
+    if (!subIdsByFilterIdByUrl.has(socket.url)) {
+      subIdsByFilterIdByUrl.set(socket.url, new Map<string, Set<string>>())
+    }
+
+    this.subIdsByFilterId = subIdsByFilterIdByUrl.get(socket.url)!
 
     this._unsubscribers.push(
       on(socket, SocketEvent.Receive, (message: RelayMessage, url: string) => {
@@ -83,6 +92,22 @@ export class MultiplexingAdapter extends AbstractAdapter {
   }
 }
 
+const getNotificationBody = (event: TrustedEvent) => {
+  const renderer = renderAsText(parse(event), {
+    createElement: tag => ({
+      _text: "",
+      set innerText(text: string) {
+        this._text = text
+      },
+      get innerHTML() {
+        return this._text
+      },
+    })
+  })
+
+  return renderer.toString()
+}
+
 const sendWebNotification = async (alert: WebAlert, event: TrustedEvent, relays: string[]) => {
   try {
     const subscription = {
@@ -94,8 +119,8 @@ const sendWebNotification = async (alert: WebAlert, event: TrustedEvent, relays:
     }
 
     const payload = JSON.stringify({
-      title: "New activity!",
-      body: "You have received a new notification",
+      title: "New activity",
+      body: getNotificationBody(event),
       relays,
       event,
     })
@@ -113,13 +138,35 @@ const sendWebNotification = async (alert: WebAlert, event: TrustedEvent, relays:
 const sendIosNotification = (alert: IosAlert, event: TrustedEvent, relays: string[]) => {
 }
 
-const sendAndroidNotification = (alert: AndroidAlert, event: TrustedEvent, relays: string[]) => {
+const sendAndroidNotification = async (alert: AndroidAlert, event: TrustedEvent, relays: string[]) => {
+  try {
+    const response = await fcm.messaging().send({
+      token: alert.deviceToken,
+      notification: {
+        title: "New activity",
+        body: getNotificationBody(event),
+      },
+      data: {
+        relays: JSON.stringify(relays),
+        event: JSON.stringify(event),
+      },
+      android: {
+        priority: 'high' as const,
+      },
+    })
+
+    console.log(`Android push notification sent to ${alert.address}:`, response)
+  } catch (error: any) {
+    console.error(`Failed to send Android push notification to ${alert.address}:`, error)
+    failAlert(alert.address, error.message || String(error))
+    removeListener(alert)
+  }
 }
 
 const createListener = (alert: PushAlert) => {
   const tracker = new Tracker()
-
   const feed = simplifyFeed(makeUnionFeed(...alert.feeds))
+  const context = {getAdapter: (url: string) => new MultiplexingAdapter(Pool.get().get(url))}
 
   const promise = call(async () => {
     console.log(`listener: loading relay selections for ${alert.address}`)
@@ -135,6 +182,7 @@ const createListener = (alert: PushAlert) => {
     const controller = new FeedController({
       feed,
       tracker,
+      context,
       signer: appSigner,
       getPubkeysForScope: makeGetPubkeysForScope(alert.pubkey),
       getPubkeysForWOTRange: makeGetPubkeysForWOTRange(alert.pubkey),

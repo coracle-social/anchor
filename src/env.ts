@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import fcm from 'firebase-admin'
 import webpush from 'web-push'
 import { always } from '@welshman/lib'
 import { normalizeRelayUrl } from '@welshman/util'
@@ -14,6 +15,7 @@ if (!process.env.POSTMARK_SENDER_ADDRESS) throw new Error('POSTMARK_SENDER_ADDRE
 if (!process.env.VAPID_PRIVATE_KEY) throw new Error('VAPID_PRIVATE_KEY is not defined.')
 if (!process.env.VAPID_PUBLIC_KEY) throw new Error('VAPID_PUBLIC_KEY is not defined.')
 if (!process.env.VAPID_SUBJECT) throw new Error('VAPID_SUBJECT is not defined.')
+if (!process.env.FCM_SERVICE_ACCOUNT_KEY) throw new Error('FCM_SERVICE_ACCOUNT_KEY is not defined.')
 if (!process.env.DEFAULT_RELAYS) throw new Error('DEFAULT_RELAYS is not defined.')
 if (!process.env.INDEXER_RELAYS) throw new Error('INDEXER_RELAYS is not defined.')
 if (!process.env.SEARCH_RELAYS) throw new Error('SEARCH_RELAYS is not defined.')
@@ -45,3 +47,6 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 )
 
+fcm.initializeApp({
+  credential: fcm.credential.cert(JSON.parse(process.env.FCM_SERVICE_ACCOUNT_KEY)),
+})

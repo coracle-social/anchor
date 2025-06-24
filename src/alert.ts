@@ -51,6 +51,7 @@ export type IosAlert = Alert & {
 }
 
 export type AndroidAlert = Alert & {
+  deviceToken: string
 }
 
 export type PushAlert = WebAlert | IosAlert | AndroidAlert
@@ -99,6 +100,12 @@ export const getAlertError = async (alert: Alert) => {
 
     if (!alert.email?.includes('@')) {
       return 'Please provide a valid email address'
+    }
+  }
+
+  if (isAndroidAlert(alert)) {
+    if (!alert.deviceToken) {
+      return 'No FCM device token was provided'
     }
   }
 

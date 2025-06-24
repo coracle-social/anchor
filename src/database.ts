@@ -138,7 +138,9 @@ const parseAlert = (row: any): Alert | undefined => {
     }
 
     if (event.kind === ALERT_ANDROID) {
-      return alert as AndroidAlert
+      const deviceToken = getTagValue('device_token', tags)
+
+      return { ...alert, deviceToken } as AndroidAlert
     }
 
     throw new Error(`Unable to parse alert of kind ${event.kind}`)
