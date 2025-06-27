@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import apn from 'apn'
 import fcm from 'firebase-admin'
 import webpush from 'web-push'
 import { always } from '@welshman/lib'
@@ -15,7 +16,10 @@ if (!process.env.POSTMARK_SENDER_ADDRESS) throw new Error('POSTMARK_SENDER_ADDRE
 if (!process.env.VAPID_PRIVATE_KEY) throw new Error('VAPID_PRIVATE_KEY is not defined.')
 if (!process.env.VAPID_PUBLIC_KEY) throw new Error('VAPID_PUBLIC_KEY is not defined.')
 if (!process.env.VAPID_SUBJECT) throw new Error('VAPID_SUBJECT is not defined.')
-if (!process.env.FCM_SERVICE_ACCOUNT_KEY) throw new Error('FCM_SERVICE_ACCOUNT_KEY is not defined.')
+if (!process.env.FCM_KEY) throw new Error('FCM_KEY is not defined.')
+if (!process.env.APN_KEY) throw new Error('APN_KEY is not defined.')
+if (!process.env.APN_KEY_ID) throw new Error('APN_KEY_ID is not defined.')
+if (!process.env.APN_TEAM_ID) throw new Error('APN_TEAM_ID is not defined.')
 if (!process.env.DEFAULT_RELAYS) throw new Error('DEFAULT_RELAYS is not defined.')
 if (!process.env.INDEXER_RELAYS) throw new Error('INDEXER_RELAYS is not defined.')
 if (!process.env.SEARCH_RELAYS) throw new Error('SEARCH_RELAYS is not defined.')
@@ -38,7 +42,7 @@ routerContext.getSearchRelays = always(SEARCH_RELAYS)
 defaultSocketPolicies.push(
   makeSocketPolicyAuth({
     sign: appSigner.sign,
-  }),
+  })
 )
 
 webpush.setVapidDetails(
@@ -48,5 +52,14 @@ webpush.setVapidDetails(
 )
 
 fcm.initializeApp({
-  credential: fcm.credential.cert(JSON.parse(process.env.FCM_SERVICE_ACCOUNT_KEY)),
+  credential: fcm.credential.cert(JSON.parse(process.env.FCM_KEY)),
+})
+
+export const apnProvider = new apn.Provider({
+  production: false,
+  token: {
+    key: process.env.APN_KEY,
+    keyId: process.env.APN_KEY_ID,
+    teamId: process.env.APN_TEAM_ID,
+  },
 })

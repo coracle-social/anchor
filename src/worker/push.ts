@@ -1,20 +1,42 @@
+import apn from 'apn'
 import webpush from 'web-push'
 import fcm from 'firebase-admin'
 import { call, on } from '@welshman/lib'
 import { Tracker, Pool } from '@welshman/net'
-import {parse, renderAsText} from '@welshman/content'
+import { parse, renderAsText } from '@welshman/content'
 import { getFilterId, TrustedEvent } from '@welshman/util'
 import { simplifyFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
-import {AbstractAdapter, AdapterEvent, SocketEvent, isRelayEvent, isRelayEose, isRelayClosed, RelayMessage, ClientMessage, Socket, isClientReq, isClientClose, ClientMessageType} from '@welshman/net'
+import {
+  AbstractAdapter,
+  AdapterEvent,
+  SocketEvent,
+  isRelayEvent,
+  isRelayEose,
+  isRelayClosed,
+  RelayMessage,
+  ClientMessage,
+  Socket,
+  isClientReq,
+  isClientClose,
+  ClientMessageType,
+} from '@welshman/net'
 import {
   loadRelaySelections,
   makeGetPubkeysForScope,
   makeGetPubkeysForWOTRange,
   loadWot,
 } from '../repository.js'
-import { PushAlert, WebAlert, IosAlert, AndroidAlert, isWebAlert, isIosAlert, isAndroidAlert } from '../alert.js'
+import {
+  PushAlert,
+  WebAlert,
+  IosAlert,
+  AndroidAlert,
+  isWebAlert,
+  isIosAlert,
+  isAndroidAlert,
+} from '../alert.js'
 import { failAlert } from '../database.js'
-import { appSigner } from '../env.js'
+import { appSigner, apnProvider } from '../env.js'
 
 const listenersByAddress = new Map()
 const subIdsByFilterIdByUrl = new Map<string, Map<string, Set<string>>>()
@@ -46,7 +68,7 @@ export class MultiplexingAdapter extends AbstractAdapter {
         } else {
           this.emit(AdapterEvent.Receive, message, url)
         }
-      }),
+      })
     )
   }
 
@@ -94,15 +116,15 @@ export class MultiplexingAdapter extends AbstractAdapter {
 
 const getNotificationBody = (event: TrustedEvent) => {
   const renderer = renderAsText(parse(event), {
-    createElement: tag => ({
-      _text: "",
+    createElement: (tag) => ({
+      _text: '',
       set innerText(text: string) {
         this._text = text
       },
       get innerHTML() {
         return this._text
       },
-    })
+    }),
   })
 
   return renderer.toString()
@@ -119,7 +141,7 @@ const sendWebNotification = async (alert: WebAlert, event: TrustedEvent, relays:
     }
 
     const payload = JSON.stringify({
-      title: "New activity",
+      title: 'New activity',
       body: getNotificationBody(event),
       relays,
       event,
@@ -135,15 +157,44 @@ const sendWebNotification = async (alert: WebAlert, event: TrustedEvent, relays:
   }
 }
 
-const sendIosNotification = (alert: IosAlert, event: TrustedEvent, relays: string[]) => {
+const sendIosNotification = async (alert: IosAlert, event: TrustedEvent, relays: string[]) => {
+  let notification = new apn.Notification({
+    topic: alert.bundleIdentifier,
+    sound: 'default',
+    badge: 1,
+    alert: {
+      title: 'New activity',
+      body: getNotificationBody(event),
+    },
+  })
+
+  try {
+    const { sent, failed } = await apnProvider.send(notification, alert.deviceToken)
+
+    if (failed.length > 0) {
+      throw new Error(failed[0].response?.reason)
+    }
+
+    if (sent.length > 0) {
+      console.log(`iOS push notification sent to ${alert.address}`)
+    }
+  } catch (error: any) {
+    console.error(`Failed to send iOS push notification to ${alert.address}:`, error)
+    failAlert(alert.address, error.message || String(error))
+    removeListener(alert)
+  }
 }
 
-const sendAndroidNotification = async (alert: AndroidAlert, event: TrustedEvent, relays: string[]) => {
+const sendAndroidNotification = async (
+  alert: AndroidAlert,
+  event: TrustedEvent,
+  relays: string[]
+) => {
   try {
     const response = await fcm.messaging().send({
       token: alert.deviceToken,
       notification: {
-        title: "New activity",
+        title: 'New activity',
         body: getNotificationBody(event),
       },
       data: {
@@ -166,7 +217,7 @@ const sendAndroidNotification = async (alert: AndroidAlert, event: TrustedEvent,
 const createListener = (alert: PushAlert) => {
   const tracker = new Tracker()
   const feed = simplifyFeed(makeUnionFeed(...alert.feeds))
-  const context = {getAdapter: (url: string) => new MultiplexingAdapter(Pool.get().get(url))}
+  const context = { getAdapter: (url: string) => new MultiplexingAdapter(Pool.get().get(url)) }
 
   const promise = call(async () => {
     console.log(`listener: loading relay selections for ${alert.address}`)
@@ -200,7 +251,7 @@ const createListener = (alert: PushAlert) => {
     return controller.listen()
   })
 
-  return {stop: () => promise.then(call)}
+  return { stop: () => promise.then(call) }
 }
 
 export const addListener = (alert: PushAlert) => {

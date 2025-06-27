@@ -1,10 +1,5 @@
 import { instrument } from 'succinct-async'
-import {
-  getTags,
-  getTagValues,
-  makeEvent,
-  AUTH_JOIN,
-} from '@welshman/util'
+import { getTags, getTagValues, makeEvent, AUTH_JOIN } from '@welshman/util'
 import { Pool } from '@welshman/net'
 import { appSigner } from './env.js'
 import { Alert, alertKinds, isEmailAlert, isPushAlert } from './alert.js'

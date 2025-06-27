@@ -94,7 +94,8 @@ export const migrate = () =>
             confirmed_at INTEGER,
             unsubscribed_at INTEGER
           )
-        `)
+        `
+        )
         await addColumnIfNotExists('alerts', 'failed_at', 'INTEGER')
         await addColumnIfNotExists('alerts', 'failed_reason', 'TEXT')
         resolve()
@@ -134,7 +135,10 @@ const parseAlert = (row: any): Alert | undefined => {
     }
 
     if (event.kind === ALERT_IOS) {
-      return alert as IosAlert
+      const deviceToken = getTagValue('device_token', tags)
+      const bundleIdentifier = getTagValue('bundle_identifier', tags)
+
+      return { ...alert, deviceToken, bundleIdentifier } as AndroidAlert
     }
 
     if (event.kind === ALERT_ANDROID) {
@@ -210,11 +214,10 @@ export const failAlert = instrument(
   'database.failAlert',
   async (address: string, reason: string) => {
     return parseAlert(
-      await get(`UPDATE alerts SET failed_at = ?, failed_reason = ? WHERE address = ? RETURNING *`, [
-        now(),
-        reason,
-        address,
-      ])
+      await get(
+        `UPDATE alerts SET failed_at = ?, failed_reason = ? WHERE address = ? RETURNING *`,
+        [now(), reason, address]
+      )
     )
   }
 )

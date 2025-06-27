@@ -48,6 +48,8 @@ export type WebAlert = Alert & {
 }
 
 export type IosAlert = Alert & {
+  deviceToken: string
+  bundleIdentifier: string
 }
 
 export type AndroidAlert = Alert & {
@@ -56,14 +58,11 @@ export type AndroidAlert = Alert & {
 
 export type PushAlert = WebAlert | IosAlert | AndroidAlert
 
-export const isEmailAlert = (alert: Alert): alert is EmailAlert =>
-  alert.event.kind === ALERT_EMAIL
+export const isEmailAlert = (alert: Alert): alert is EmailAlert => alert.event.kind === ALERT_EMAIL
 
-export const isWebAlert = (alert: Alert): alert is WebAlert =>
-  alert.event.kind === ALERT_WEB
+export const isWebAlert = (alert: Alert): alert is WebAlert => alert.event.kind === ALERT_WEB
 
-export const isIosAlert = (alert: Alert): alert is IosAlert =>
-  alert.event.kind === ALERT_IOS
+export const isIosAlert = (alert: Alert): alert is IosAlert => alert.event.kind === ALERT_IOS
 
 export const isAndroidAlert = (alert: Alert): alert is AndroidAlert =>
   alert.event.kind === ALERT_ANDROID
@@ -105,7 +104,17 @@ export const getAlertError = async (alert: Alert) => {
 
   if (isAndroidAlert(alert)) {
     if (!alert.deviceToken) {
-      return 'No FCM device token was provided'
+      return 'No FCM device_token was provided'
+    }
+  }
+
+  if (isIosAlert(alert)) {
+    if (!alert.deviceToken) {
+      return 'No APNs device_token was provided'
+    }
+
+    if (!alert.bundleIdentifier) {
+      return 'No bundle_identifier was provided'
     }
   }
 
@@ -191,4 +200,3 @@ export const createStatusEvent = async (alert: Alert) =>
       ],
     })
   )
-

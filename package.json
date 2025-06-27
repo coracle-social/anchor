@@ -39,6 +39,7 @@
     "@welshman/signer": "^0.3.7",
     "@welshman/store": "^0.3.7",
     "@welshman/util": "^0.3.7",
+    "apn": "^2.2.0",
     "bcrypt": "^5.1.1",
     "cron": "^4.0.0",
     "cron-parser": "^5.0.4",
