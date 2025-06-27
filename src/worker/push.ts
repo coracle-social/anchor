@@ -3,7 +3,7 @@ import webpush from 'web-push'
 import fcm from 'firebase-admin'
 import { call, on } from '@welshman/lib'
 import { Tracker, Pool } from '@welshman/net'
-import { parse, renderAsText } from '@welshman/content'
+import { parse, truncate, renderAsText } from '@welshman/content'
 import { getFilterId, TrustedEvent } from '@welshman/util'
 import { simplifyFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
 import {
@@ -115,7 +115,12 @@ export class MultiplexingAdapter extends AbstractAdapter {
 }
 
 const getNotificationBody = (event: TrustedEvent) => {
-  const renderer = renderAsText(parse(event), {
+  const parsed = truncate(parse(event), {
+    minLength: 50,
+    maxLength: 200,
+  })
+
+  const renderer = renderAsText(parsed, {
     createElement: (tag) => ({
       _text: '',
       set innerText(text: string) {
@@ -165,6 +170,10 @@ const sendIosNotification = async (alert: IosAlert, event: TrustedEvent, relays:
     alert: {
       title: 'New activity',
       body: getNotificationBody(event),
+    },
+    payload: {
+      relays: JSON.stringify(relays),
+      event: JSON.stringify(event),
     },
   })
 
