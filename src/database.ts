@@ -163,7 +163,10 @@ export async function insertAlert(event: SignedEvent, tags: string[][]) {
           email=excluded.email,
           event=excluded.event,
           tags=excluded.tags,
-          token=excluded.token
+          token=excluded.token,
+          confirmed_at=null,
+          failed_at=null,
+          failed_reason=null
          RETURNING *`,
         [
           getAddress(event),
