@@ -56,7 +56,7 @@ fcm.initializeApp({
 })
 
 export const apnProvider = new apn.Provider({
-  production: false,
+  production: process.env.APN_PRODUCTION === 'true',
   token: {
     key: process.env.APN_KEY,
     keyId: process.env.APN_KEY_ID,

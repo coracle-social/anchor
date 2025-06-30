@@ -2,6 +2,28 @@ A nostr notifier service.
 
 # Deploying Anchor
 
+## Configuration
+
+Anchor includes several environment variables which need to be either added to the environment or placed in a `.env` file:
+
+- `ANCHOR_SECRET` - a nostr private key used to sign messages and decrypt messages
+- `ANCHOR_NAME` - the name of the Anchor instance
+- `ANCHOR_URL` - the URL of the Anchor instance
+- `INDEXER_RELAYS` - a comma-separated list of relays to use for retrieving `kind 10002` events
+- `DEFAULT_RELAYS` - a comma-separated list of relays to use as fallbacks
+- `SEARCH_RELAYS` - a comma-separated list of relays to use for searching nostr
+- `POSTMARK_API_KEY` - a postmarkapp.com API key
+- `POSTMARK_SENDER_ADDRESS` - a postmarkapp.com sender email
+- `FCM_KEY` - a Firebase Cloud Messaging API key
+- `APN_KEY` - an Apple Push Notifications key
+- `APN_KEY_ID` - an Apple Push Notifications key ID
+- `APN_TEAM_ID` - an Apple Push Notifications team ID
+- `APN_PRODUCTION` - whether to use production APN notifications (`true` for production, otherwise sandbox will be used)
+- `VAPID_PRIVATE_KEY` - a VAPID private key
+- `VAPID_PUBLIC_KEY` - a VAPID public key corresponding to the private key
+- `VAPID_SUBJECT` - a URL for the VAPID subject
+- `PORT` - The port to run the web server and relay on
+
 ## Installation
 
 There will be some parts of the following templates, for example `<SERVER NAME>`, which you'll need to fill in before running the code. This guide will walk you through creating a user, installing dependencies, and building anchor.
