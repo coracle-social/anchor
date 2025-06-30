@@ -1,6 +1,7 @@
 {
   "name": "anchor",
   "type": "module",
+  "version": "1.0.0",
   "scripts": {
     "build": "tsc && pnpm run build:html && pnpm run build:web",
     "build:web": "cd web && pnpm run build",
@@ -30,15 +31,15 @@
   },
   "dependencies": {
     "@types/node": "^22.13.4",
-    "@welshman/content": "^0.3.7",
-    "@welshman/feeds": "^0.3.7",
-    "@welshman/lib": "^0.3.7",
-    "@welshman/net": "^0.3.7",
-    "@welshman/relay": "^0.3.7",
-    "@welshman/router": "^0.3.7",
-    "@welshman/signer": "^0.3.7",
-    "@welshman/store": "^0.3.7",
-    "@welshman/util": "^0.3.7",
+    "@welshman/content": "^0.3.8",
+    "@welshman/feeds": "^0.3.8",
+    "@welshman/lib": "^0.3.8",
+    "@welshman/net": "^0.3.8",
+    "@welshman/relay": "^0.3.8",
+    "@welshman/router": "^0.3.8",
+    "@welshman/signer": "^0.3.8",
+    "@welshman/store": "^0.3.8",
+    "@welshman/util": "^0.3.8",
     "apn": "^2.2.0",
     "bcrypt": "^5.1.1",
     "cron": "^4.0.0",
@@ -61,17 +62,6 @@
     "ws": "^8.13.0"
   },
   "pnpm": {
-    "overrides": {
-      "@welshman/lib": "link:../welshman/packages/lib",
-      "@welshman/util": "link:../welshman/packages/util",
-      "@welshman/feeds": "link:../welshman/packages/feeds",
-      "@welshman/content": "link:../welshman/packages/content",
-      "@welshman/net": "link:../welshman/packages/net",
-      "@welshman/router": "link:../welshman/packages/router",
-      "@welshman/relay": "link:../welshman/packages/relay",
-      "@welshman/store": "link:../welshman/packages/store",
-      "@welshman/signer": "link:../welshman/packages/signer"
-    },
     "onlyBuiltDependencies": [
       "bcrypt",
       "sqlite3"
