@@ -145,7 +145,7 @@ export const getStatusTags = async (alert: Alert) => {
     ]
   }
 
-  if (!alert.confirmed_at) {
+  if (!alert.confirmed_at && isEmailAlert(alert)) {
     return [
       ['status', 'pending'],
       ['message', 'Please confirm your alert via email'],
