@@ -18,7 +18,13 @@ server.use(express.json())
 
 server.use(express.static('web/dist'))
 
-server.use(rateLimit({ limit: 30, windowMs: 5 * 60 * 1000 }))
+server.use(
+  rateLimit({
+    limit: 30,
+    windowMs: 5 * 60 * 1000,
+    validate: {xForwardedForHeader: false},
+  })
+)
 
 type Handler = (req: Request, res: Response) => Promise<any>
 

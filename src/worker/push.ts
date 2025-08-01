@@ -2,7 +2,7 @@ import apn from 'apn'
 import webpush from 'web-push'
 import fcm from 'firebase-admin'
 import { call, on } from '@welshman/lib'
-import { Tracker, Pool } from '@welshman/net'
+import { Tracker } from '@welshman/net'
 import { parse, truncate, renderAsText } from '@welshman/content'
 import { getFilterId, TrustedEvent } from '@welshman/util'
 import { simplifyFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
@@ -34,6 +34,7 @@ import {
   isWebAlert,
   isIosAlert,
   isAndroidAlert,
+  getAlertSocket,
 } from '../alert.js'
 import { failAlert } from '../database.js'
 import { appSigner, apnProvider } from '../env.js'
@@ -226,7 +227,7 @@ const sendAndroidNotification = async (
 const createListener = (alert: PushAlert) => {
   const tracker = new Tracker()
   const feed = simplifyFeed(makeUnionFeed(...alert.feeds))
-  const context = { getAdapter: (url: string) => new MultiplexingAdapter(Pool.get().get(url)) }
+  const context = { getAdapter: (url: string) => new MultiplexingAdapter(getAlertSocket(url, alert)) }
 
   const promise = call(async () => {
     console.log(`listener: loading relay selections for ${alert.address}`)

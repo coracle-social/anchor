@@ -23,7 +23,7 @@ import {
   displayProfile,
   displayPubkey,
 } from '@welshman/util'
-import { load } from '@welshman/net'
+import { Loader, AdapterContext, makeLoader, SocketAdapter } from '@welshman/net'
 import { Router, addMinimalFallbacks } from '@welshman/router'
 import {
   makeIntersectionFeed,
@@ -35,7 +35,7 @@ import {
   FeedController,
 } from '@welshman/feeds'
 import { getCronDate, displayDuration, createElement } from './util.js'
-import { EmailAlert, getFormatter } from './alert.js'
+import { EmailAlert, getFormatter, getAlertSocket } from './alert.js'
 import { sendDigest } from './mailer.js'
 import {
   profilesByPubkey,
@@ -55,10 +55,14 @@ type DigestData = {
 export class Digest {
   authd = new Set<string>()
   since: number
+  context: AdapterContext
+  load: Loader
   feed: Feed
 
   constructor(readonly alert: EmailAlert) {
     this.since = dateToSeconds(getCronDate(alert.cron, -2))
+    this.context = {getAdapter: (url: string) => new SocketAdapter(getAlertSocket(url, alert))}
+    this.load = makeLoader({delay: 500, timeout: 5000, threshold: 0.8, context: this.context})
     this.feed = simplifyFeed(
       makeIntersectionFeed(
         makeKindFeed(NOTE),
@@ -78,7 +82,7 @@ export class Digest {
       return defaultHandler
     }
 
-    const events = await load({ relays, filters })
+    const events = await this.load({relays, filters})
     const getTemplates = (e: TrustedEvent) => e.tags.filter(nthEq(0, 'web')).map(nth(1))
     const templates = events.flatMap((e) => getTemplates(e))
 
@@ -116,7 +120,7 @@ export class Digest {
             const relays = Router.get().Replies(e).policy(addMinimalFallbacks).getUrls()
             const filters = getReplyFilters(events, { kinds: [NOTE, COMMENT, REACTION] })
 
-            for (const reply of await load({
+            for (const reply of await this.load({
               relays,
               filters,
               signal: AbortSignal.timeout(1000),
@@ -128,6 +132,9 @@ export class Digest {
             }
           })
         )
+      },
+      context: {
+        getAdapter: (url: string) => new SocketAdapter(getAlertSocket(url, this.alert)),
       },
     })
 

@@ -1,8 +1,7 @@
 import { instrument } from 'succinct-async'
 import { getTags, getTagValues, makeEvent, AUTH_JOIN } from '@welshman/util'
-import { Pool } from '@welshman/net'
-import { appSigner } from './env.js'
-import { Alert, alertKinds, isEmailAlert, isPushAlert } from './alert.js'
+import { publish, SocketAdapter } from '@welshman/net'
+import { Alert, alertKinds, isEmailAlert, isPushAlert, getAlertSigner, getAlertSocket } from './alert.js'
 import * as mailer from './mailer.js'
 import * as worker from './worker/index.js'
 import * as db from './database.js'
@@ -18,6 +17,22 @@ export type AddAlertParams = Pick<Alert, 'event' | 'tags'>
 export const addAlert = instrument('actions.addAlert', async ({ event, tags }: AddAlertParams) => {
   const alert = await db.insertAlert(event, tags)
 
+  // Request access to any relays using provided invite codes
+  for (const [_, url, claim] of getTags('claim', alert.tags)) {
+    const signer = await getAlertSigner(url, alert)
+    const socket = await getAlertSocket(url, alert)
+
+    await socket.auth.attemptAuth(signer.sign)
+
+    await publish({
+      relays: [url],
+      event: await signer.sign(makeEvent(AUTH_JOIN, { tags: [['claim', claim]] })),
+      context: {
+        getAdapter: (url: string) => new SocketAdapter(socket),
+      },
+    })
+  }
+
   // Send confirmation email if we need to
   if (isEmailAlert(alert) && alert.email.includes('@')) {
     await mailer.sendConfirm(alert)
@@ -27,14 +42,6 @@ export const addAlert = instrument('actions.addAlert', async ({ event, tags }: A
   if (isPushAlert(alert)) {
     db.confirmAlert(alert.token)
     worker.registerAlert(alert)
-  }
-
-  // Request access to any relays using provided invite codes
-  for (const [_, url, claim] of getTags('claim', alert.tags)) {
-    const template = makeEvent(AUTH_JOIN, { tags: [['claim', claim]] })
-    const event = await appSigner.sign(template)
-
-    Pool.get().get(url).send(['EVENT', event])
   }
 
   return alert

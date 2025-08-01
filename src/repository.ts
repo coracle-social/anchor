@@ -12,7 +12,7 @@ import {
   getPubkeyTagValues,
   getListTags,
 } from '@welshman/util'
-import { load, LoadOptions } from '@welshman/net'
+import { makeLoader, LoadOptions, Pool, SocketAdapter } from '@welshman/net'
 import { Repository } from '@welshman/relay'
 import { Router, getFilterSelections } from '@welshman/router'
 import { deriveEventsMapped, collection } from '@welshman/store'
@@ -21,6 +21,17 @@ import { getFeedArgs, isScopeFeed, walkFeed, isWOTFeed, Scope, Feed } from '@wel
 // Utilities for loading data
 
 export const repository = Repository.get()
+
+const pool = new Pool()
+
+const load = makeLoader({
+  delay: 500,
+  timeout: 5000,
+  threshold: 0.8,
+  context: {
+    getAdapter: (url: string) => new SocketAdapter(pool.get(url))
+  },
+})
 
 export const sharedLoad = (request: LoadOptions) =>
   load({

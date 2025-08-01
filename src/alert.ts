@@ -1,8 +1,12 @@
 import { CronExpressionParser } from 'cron-parser'
+import { defaultSocketPolicies, SocketEvent, makeSocketPolicyAuth, makeSocket, Socket } from '@welshman/net'
 import { tryCatch, int, HOUR, removeNil, LOCALE, TIMEZONE } from '@welshman/lib'
 import { Feed, ValidationError, validateFeed } from '@welshman/feeds'
+import { Nip01Signer, ISigner } from '@welshman/signer'
 import {
+  getTags,
   makeEvent,
+  StampedEvent,
   SignedEvent,
   ALERT_STATUS,
   ALERT_EMAIL,
@@ -11,6 +15,7 @@ import {
   ALERT_ANDROID,
 } from '@welshman/util'
 import { appSigner } from './env.js'
+import * as db from './database.js'
 
 export const alertKinds = [ALERT_EMAIL, ALERT_WEB, ALERT_IOS, ALERT_ANDROID]
 
@@ -200,3 +205,60 @@ export const createStatusEvent = async (alert: Alert) =>
       ],
     })
   )
+
+export const makeClaimUrl = (url: string, claim: string) => `${url}|${claim}`
+
+export const getAlertClaim = (url: string, alert: BaseAlert) => {
+  for (const [_, thisUrl, claim] of getTags('claim', alert.tags)) {
+    if (thisUrl === url) {
+      return claim
+    }
+  }
+
+  return ""
+}
+
+const signersByClaimUrl = new Map<string, Promise<ISigner>>()
+
+export const getAlertSigner = async (url: string, alert: BaseAlert) => {
+  const claim = getAlertClaim(url, alert)
+  const claimUrl = makeClaimUrl(url, claim)
+
+  let signer = signersByClaimUrl.get(claimUrl)
+
+  if (!signer) {
+    signer = claim
+      ? db.getOrCreateClaim(url, claim).then(secret => Nip01Signer.fromSecret(secret))
+      : Promise.resolve(Nip01Signer.ephemeral())
+
+    signersByClaimUrl.set(claimUrl, signer)
+  }
+
+  return signer
+}
+
+export const socketsByClaimUrl = new Map<string, Socket>()
+
+export const getAlertSocket = (url: string, alert: BaseAlert) => {
+  const claim = getAlertClaim(url, alert)
+  const claimUrl = makeClaimUrl(url, claim)
+
+  let socket = socketsByClaimUrl.get(claimUrl)
+
+  if (!socket) {
+    socket = makeSocket(url, [
+      ...defaultSocketPolicies,
+      makeSocketPolicyAuth({
+        sign: async (event: StampedEvent) => {
+          const signer = await getAlertSigner(url, alert)
+
+          return signer.sign(event)
+        },
+      }),
+    ])
+
+    socketsByClaimUrl.set(claimUrl, socket)
+  }
+
+  return socket
+}

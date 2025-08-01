@@ -15,6 +15,7 @@ import {
   ALERT_IOS,
   ALERT_ANDROID,
 } from '@welshman/util'
+import {makeSecret} from '@welshman/signer'
 import type { BaseAlert, Alert, EmailAlert, WebAlert, IosAlert, AndroidAlert } from './alert.js'
 
 const db = new sqlite3.Database('anchor.db')
@@ -98,6 +99,16 @@ export const migrate = () =>
         )
         await addColumnIfNotExists('alerts', 'failed_at', 'INTEGER')
         await addColumnIfNotExists('alerts', 'failed_reason', 'TEXT')
+        await run(
+          `
+          CREATE TABLE IF NOT EXISTS claims (
+            url TEXT,
+            claim TEXT,
+            secret TEXT
+          )
+        `
+        )
+        await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_claims_claim_url ON claims (url, claim)`)
         resolve()
       })
     } catch (err) {
@@ -245,5 +256,20 @@ export const getAlertsForPubkey = instrument(
     const rows = await all(`SELECT * FROM alerts WHERE pubkey = ?`, [pubkey])
 
     return rows.map(parseAlert) as Alert[]
+  }
+)
+
+// Claims
+
+export const getOrCreateClaim = instrument(
+  'database.getOrCreateClaim',
+  async (url: string, claim: string) => {
+    const row = await get<{secret: string}>(
+      `INSERT INTO claims (url, claim, secret) VALUES (?, ?, ?)
+       ON CONFLICT(url, claim) DO UPDATE SET url=excluded.url RETURNING secret`,
+      [url, claim, makeSecret()]
+    )
+
+    return row!.secret
   }
 )

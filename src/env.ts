@@ -4,9 +4,9 @@ import fcm from 'firebase-admin'
 import webpush from 'web-push'
 import { always } from '@welshman/lib'
 import { normalizeRelayUrl } from '@welshman/util'
+import { netContext } from '@welshman/net'
 import { Nip01Signer } from '@welshman/signer'
 import { routerContext } from '@welshman/router'
-import { makeSocketPolicyAuth, defaultSocketPolicies } from '@welshman/net'
 
 if (!process.env.ANCHOR_URL) throw new Error('ANCHOR_URL is not defined.')
 if (!process.env.ANCHOR_NAME) throw new Error('ANCHOR_NAME is not defined.')
@@ -35,15 +35,17 @@ export const INDEXER_RELAYS = process.env.INDEXER_RELAYS.split(',').map(normaliz
 export const SEARCH_RELAYS = process.env.SEARCH_RELAYS.split(',').map(normalizeRelayUrl)
 export const PORT = process.env.PORT
 
+appSigner.getPubkey().then(pubkey => {
+  console.log(`Running as ${pubkey}`)
+})
+
+netContext.pool.get = (url: string) => {
+  throw new Error('Attempted to use default pool')
+}
+
 routerContext.getDefaultRelays = always(DEFAULT_RELAYS)
 routerContext.getIndexerRelays = always(INDEXER_RELAYS)
 routerContext.getSearchRelays = always(SEARCH_RELAYS)
-
-defaultSocketPolicies.push(
-  makeSocketPolicyAuth({
-    sign: appSigner.sign,
-  })
-)
 
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT,
