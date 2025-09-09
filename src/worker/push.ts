@@ -4,7 +4,7 @@ import fcm from 'firebase-admin'
 import { call, on } from '@welshman/lib'
 import { Tracker } from '@welshman/net'
 import { parse, truncate, renderAsText } from '@welshman/content'
-import { getFilterId, TrustedEvent } from '@welshman/util'
+import { WRAP, getFilterId, TrustedEvent } from '@welshman/util'
 import { simplifyFeed, makeUnionFeed, FeedController } from '@welshman/feeds'
 import {
   AbstractAdapter,
@@ -116,6 +116,10 @@ export class MultiplexingAdapter extends AbstractAdapter {
 }
 
 const getNotificationBody = (event: TrustedEvent) => {
+  if (event.kind === WRAP) {
+    return ""
+  }
+
   const parsed = truncate(parse(event), {
     minLength: 50,
     maxLength: 200,
