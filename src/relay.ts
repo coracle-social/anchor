@@ -41,6 +41,10 @@ export class Connection {
   }
 
   cleanup() {
+    this._subs.clear()
+    this._socket.removeAllListeners('message')
+    this._socket.removeAllListeners('error')
+    this._socket.removeAllListeners('close')
     this._socket.close()
   }
 

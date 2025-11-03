@@ -92,12 +92,24 @@ addRoute('get', '/unsubscribe', async (req: Request, res: Response) => {
   res.send(await render('pages/unsubscribe-success.html'))
 })
 
+let connectionsCount = 0
+
 server.ws('/', (socket: WebSocket, request: Request) => {
   const connection = new Connection(socket, request)
 
+  console.log(`Opening websocket connection; ${++connectionsCount} total`)
+
   socket.on('message', (msg) => connection.handle(msg))
-  socket.on('error', () => connection.cleanup())
-  socket.on('close', () => connection.cleanup())
+
+  socket.on('error', () => {
+    console.log(`Error on websocket connection; ${--connectionsCount} total`)
+    connection.cleanup()
+  })
+
+  socket.on('close', () => {
+    console.log(`Closing websocket connection; ${--connectionsCount} total`)
+    connection.cleanup()
+  })
 })
 
 server.use((err: Error, req: Request, res: Response, next: NextFunction) => {
