@@ -12,32 +12,29 @@ importers:
         specifier: ^22.18.1
         version: 22.18.1
       '@welshman/content':
-        specifier: ^0.4.6
-        version: 0.4.6(typescript@5.9.2)
+        specifier: ^0.6.3
+        version: 0.6.3(typescript@5.9.2)
       '@welshman/feeds':
-        specifier: ^0.4.6
-        version: 0.4.6(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)
+        specifier: ^0.6.3
+        version: 0.6.3(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)
       '@welshman/lib':
-        specifier: ^0.4.6
-        version: 0.4.6
+        specifier: ^0.6.3
+        version: 0.6.3
       '@welshman/net':
-        specifier: ^0.4.6
-        version: 0.4.6(typescript@5.9.2)(ws@8.18.3)
-      '@welshman/relay':
-        specifier: ^0.4.6
-        version: 0.4.6(typescript@5.9.2)
+        specifier: ^0.6.3
+        version: 0.6.3(typescript@5.9.2)(ws@8.18.3)
       '@welshman/router':
-        specifier: ^0.4.6
-        version: 0.4.6(typescript@5.9.2)
+        specifier: ^0.6.3
+        version: 0.6.3(typescript@5.9.2)(ws@8.18.3)
       '@welshman/signer':
-        specifier: ^0.4.6
-        version: 0.4.6(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)
+        specifier: ^0.6.3
+        version: 0.6.3(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)
       '@welshman/store':
-        specifier: ^0.4.6
-        version: 0.4.6(typescript@5.9.2)
+        specifier: ^0.6.3
+        version: 0.6.3(typescript@5.9.2)(ws@8.18.3)
       '@welshman/util':
-        specifier: ^0.4.6
-        version: 0.4.6(typescript@5.9.2)
+        specifier: ^0.6.3
+        version: 0.6.3(typescript@5.9.2)
       apn:
         specifier: ^2.2.0
         version: 2.2.0
@@ -593,35 +590,32 @@ packages:
     resolution: {integrity: sha512-T+S1KqRD4sg/bHfLwrpF/K3gQLBM1n7Rp7OjjikjTEssI2YJzQpi5WXoynOaQ93ERIuq3O8RBTOUYDKszUCEHw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@welshman/content@0.4.6':
-    resolution: {integrity: sha512-1eqNroerKXcj7kI/X7oJq8h0F2Gn09RIgyNLWLds9qBXjIyK6JdpS7j8wj667NqXlCVkXbq49X1FNkWohtqdCw==}
+  '@welshman/content@0.6.3':
+    resolution: {integrity: sha512-VvlW2kJ/lB6sy/Upa0nbKbO6rMwTO9Bi2iGXNiR9XFA8rlMUJc7Wl1Dcd3QZD3QHBTeTICOuFB4xopwQK3W0JQ==}
 
-  '@welshman/feeds@0.4.6':
-    resolution: {integrity: sha512-oVQASdYqwspAJLDYJUBI5ZNRp0Fl5gROqqulC3ftACvj6HNNjzeGfd9obYyJfyU7zNLHs8eEuLuSBBQoeOOoQg==}
+  '@welshman/feeds@0.6.3':
+    resolution: {integrity: sha512-Q5Dupo+C/CIm7BMZ++7BhQdjgyu3tU4aK2w172cx0gTFfSTqKxFrbWX4ewUWqq8ex1/1Xd+heVheE1q54FCVNQ==}
 
-  '@welshman/lib@0.4.6':
-    resolution: {integrity: sha512-CyIlIPKxv/xaF+1U0wjA6MMiTOnoInkcECTaSzRXTaiFAwMl91MJpmV9X0zGK+SgUMoq91hM2GCUt301fcCXVg==}
+  '@welshman/lib@0.6.3':
+    resolution: {integrity: sha512-O632yJQ/1IUmb9FuC+O0TsOUl+UubYriU95LpKA9ZFAaogXLrzHZH0HZ/4xmdPj82kqBeS98EOb3GkSAOYZaLA==}
     engines: {node: '>=12.0.0'}
 
-  '@welshman/net@0.4.6':
-    resolution: {integrity: sha512-sivSyKKTqYaUyU8335SoOwXi5IW/wz3rru97GrrmtLDPDWPbuLN5DBI8WL42YFxjIlIqCKzgagkMWwEWkYZpsA==}
+  '@welshman/net@0.6.3':
+    resolution: {integrity: sha512-RlCYFFau6p2RZq3K4XMYhD7xvNFYjA6zpzHuM8iV4Xh8nL5b8tn6e6f6a4I2E5uZMfYdWstvcC6OhU/Z4NQZoA==}
 
-  '@welshman/relay@0.4.6':
-    resolution: {integrity: sha512-Mg820k7bYR5PLEjtf0BNYXHMuJC4jELwjajqNYZ04gtcifyyY3x7uWnBBSVr6Hfipx97PCsrxWZiuuACI9vfsQ==}
+  '@welshman/router@0.6.3':
+    resolution: {integrity: sha512-lZaw166aJKhftakMGofzmFmtAqfQBGSur58/ANgLCwVy4b5riqempcPoH6EOgwqANye5YUlsUisxbx0r/2wXPA==}
 
-  '@welshman/router@0.4.6':
-    resolution: {integrity: sha512-5Yxhh+o8OA2MYgOOAKsd3CrOeR2im1Wc9st6bfj6fRNRuZ4AkHi8O1JRCdWEDEwYST/1G0x69mSPuYr3bub0Gw==}
-
-  '@welshman/signer@0.4.6':
-    resolution: {integrity: sha512-KkmPPwyWRTDQQxed0cHZE2LxlsdzqnwqOzx9aKoSPh82QWR/3/K+EkZYtU6QMllwc/VUoYJUyHQRPOi0J012WA==}
+  '@welshman/signer@0.6.3':
+    resolution: {integrity: sha512-O0cd5nV77Lt4vWRvb50l6U1wkhQF6LW3x+N4tspqWqo9BeIHTDlUtZMdsnhwfTjeVlLocSVkUValxhoxxt20SA==}
     peerDependencies:
       nostr-signer-capacitor-plugin: ~0.0.4
 
-  '@welshman/store@0.4.6':
-    resolution: {integrity: sha512-NU+5p1jQ6pG21QZmfVE9fXd85C+2aKxv5gCX1YY8uDOU1kqyTP4SmQtRmllx3ABxsOtCErayn3vGP6rekKy5Lw==}
+  '@welshman/store@0.6.3':
+    resolution: {integrity: sha512-3TMon00CF1l/LcWq+B3pq/FNs2Ie4Y9EdjiAcg4dvDeZPI9h1HoQPB/s2RcaG4FYPhkynvM5zL/eH+5GIe9kJw==}
 
-  '@welshman/util@0.4.6':
-    resolution: {integrity: sha512-Fc4Lz+goLNAKBMdQF19IeT6KJWPpk+dLdlS9H+ctIQNLCYbviz1yyKNCQ12MjkEjEQy0LEJGxo/yIPffA9x36g==}
+  '@welshman/util@0.6.3':
+    resolution: {integrity: sha512-ki2j3ADmxqI0rbdnkq0wS7PFXTY0dZ24yOgceyTizwF/dtcRKmH7YyvM+2YwgbgaUO6BtqKjktc3jrh6XaxOQg==}
 
   abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
@@ -1463,8 +1457,8 @@ packages:
     resolution: {integrity: sha512-n2hY8YdoRE1i7r6M0w9DIw5GgZN0G25P8zLCRQ8rjXtTU3vsNFBI/vWK/UIeE6g5MUUz6avwAPXmL6Fy9D/90w==}
     engines: {node: '>= 6'}
 
-  http2@https://codeload.github.com/node-apn/node-http2/tar.gz/refs/tags/apn-2.1.4:
-    resolution: {tarball: https://codeload.github.com/node-apn/node-http2/tar.gz/refs/tags/apn-2.1.4}
+  http2@https://github.com/node-apn/node-http2/archive/apn-2.1.4.tar.gz:
+    resolution: {tarball: https://github.com/node-apn/node-http2/archive/apn-2.1.4.tar.gz}
     version: 3.3.6
     engines: {node: '>=0.12.0'}
 
@@ -3252,85 +3246,78 @@ snapshots:
       '@typescript-eslint/types': 8.43.0
       eslint-visitor-keys: 4.2.1
 
-  '@welshman/content@0.4.6(typescript@5.9.2)':
+  '@welshman/content@0.6.3(typescript@5.9.2)':
     dependencies:
       '@braintree/sanitize-url': 7.1.1
       nostr-tools: 2.16.2(typescript@5.9.2)
     transitivePeerDependencies:
       - typescript
 
-  '@welshman/feeds@0.4.6(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)':
+  '@welshman/feeds@0.6.3(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)':
     dependencies:
-      '@welshman/lib': 0.4.6
-      '@welshman/net': 0.4.6(typescript@5.9.2)(ws@8.18.3)
-      '@welshman/relay': 0.4.6(typescript@5.9.2)
-      '@welshman/router': 0.4.6(typescript@5.9.2)
-      '@welshman/signer': 0.4.6(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)
-      '@welshman/util': 0.4.6(typescript@5.9.2)
+      '@welshman/lib': 0.6.3
+      '@welshman/net': 0.6.3(typescript@5.9.2)(ws@8.18.3)
+      '@welshman/router': 0.6.3(typescript@5.9.2)(ws@8.18.3)
+      '@welshman/signer': 0.6.3(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)
+      '@welshman/util': 0.6.3(typescript@5.9.2)
       trava: 1.2.1
     transitivePeerDependencies:
       - nostr-signer-capacitor-plugin
       - typescript
       - ws
 
-  '@welshman/lib@0.4.6':
+  '@welshman/lib@0.6.3':
     dependencies:
       '@scure/base': 1.2.6
       '@types/events': 3.0.3
       events: 3.3.0
 
-  '@welshman/net@0.4.6(typescript@5.9.2)(ws@8.18.3)':
+  '@welshman/net@0.6.3(typescript@5.9.2)(ws@8.18.3)':
     dependencies:
-      '@welshman/lib': 0.4.6
-      '@welshman/relay': 0.4.6(typescript@5.9.2)
-      '@welshman/util': 0.4.6(typescript@5.9.2)
+      '@welshman/lib': 0.6.3
+      '@welshman/util': 0.6.3(typescript@5.9.2)
       events: 3.3.0
       isomorphic-ws: 5.0.0(ws@8.18.3)
     transitivePeerDependencies:
       - typescript
       - ws
 
-  '@welshman/relay@0.4.6(typescript@5.9.2)':
+  '@welshman/router@0.6.3(typescript@5.9.2)(ws@8.18.3)':
     dependencies:
-      '@welshman/lib': 0.4.6
-      '@welshman/util': 0.4.6(typescript@5.9.2)
+      '@welshman/lib': 0.6.3
+      '@welshman/net': 0.6.3(typescript@5.9.2)(ws@8.18.3)
+      '@welshman/util': 0.6.3(typescript@5.9.2)
     transitivePeerDependencies:
       - typescript
+      - ws
 
-  '@welshman/router@0.4.6(typescript@5.9.2)':
-    dependencies:
-      '@welshman/lib': 0.4.6
-      '@welshman/relay': 0.4.6(typescript@5.9.2)
-      '@welshman/util': 0.4.6(typescript@5.9.2)
-    transitivePeerDependencies:
-      - typescript
-
-  '@welshman/signer@0.4.6(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)':
+  '@welshman/signer@0.6.3(nostr-signer-capacitor-plugin@0.0.4(@capacitor/core@7.4.3))(typescript@5.9.2)(ws@8.18.3)':
     dependencies:
       '@noble/curves': 1.9.7
       '@noble/hashes': 1.8.0
-      '@welshman/lib': 0.4.6
-      '@welshman/net': 0.4.6(typescript@5.9.2)(ws@8.18.3)
-      '@welshman/util': 0.4.6(typescript@5.9.2)
+      '@welshman/lib': 0.6.3
+      '@welshman/net': 0.6.3(typescript@5.9.2)(ws@8.18.3)
+      '@welshman/util': 0.6.3(typescript@5.9.2)
       nostr-signer-capacitor-plugin: 0.0.4(@capacitor/core@7.4.3)
       nostr-tools: 2.16.2(typescript@5.9.2)
     transitivePeerDependencies:
       - typescript
       - ws
 
-  '@welshman/store@0.4.6(typescript@5.9.2)':
+  '@welshman/store@0.6.3(typescript@5.9.2)(ws@8.18.3)':
     dependencies:
-      '@welshman/lib': 0.4.6
-      '@welshman/relay': 0.4.6(typescript@5.9.2)
-      '@welshman/util': 0.4.6(typescript@5.9.2)
+      '@welshman/lib': 0.6.3
+      '@welshman/net': 0.6.3(typescript@5.9.2)(ws@8.18.3)
+      '@welshman/util': 0.6.3(typescript@5.9.2)
       svelte: 4.2.20
     transitivePeerDependencies:
       - typescript
+      - ws
 
-  '@welshman/util@0.4.6(typescript@5.9.2)':
+  '@welshman/util@0.6.3(typescript@5.9.2)':
     dependencies:
       '@types/ws': 8.18.1
-      '@welshman/lib': 0.4.6
+      '@welshman/lib': 0.6.3
       js-base64: 3.7.8
       nostr-tools: 2.16.2(typescript@5.9.2)
       nostr-wasm: 0.1.0
@@ -3407,7 +3394,7 @@ snapshots:
   apn@2.2.0:
     dependencies:
       debug: 3.2.7
-      http2: https://codeload.github.com/node-apn/node-http2/tar.gz/refs/tags/apn-2.1.4
+      http2: https://github.com/node-apn/node-http2/archive/apn-2.1.4.tar.gz
       jsonwebtoken: 8.5.1
       node-forge: 0.7.6
       verror: 1.10.1
@@ -4359,7 +4346,7 @@ snapshots:
       - supports-color
     optional: true
 
-  http2@https://codeload.github.com/node-apn/node-http2/tar.gz/refs/tags/apn-2.1.4: {}
+  http2@https://github.com/node-apn/node-http2/archive/apn-2.1.4.tar.gz: {}
 
   http_ece@1.2.0: {}
 

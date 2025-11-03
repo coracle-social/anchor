@@ -20,25 +20,15 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.4",
-    "@welshman/feeds": "^0.2.2",
-    "@welshman/lib": "^0.2.1",
-    "@welshman/net": "^0.2.2",
-    "@welshman/signer": "^0.2.3",
-    "@welshman/store": "^0.2.0",
-    "@welshman/util": "^0.2.2",
+    "@welshman/feeds": "^0.6.3",
+    "@welshman/lib": "^0.6.3",
+    "@welshman/net": "^0.6.3",
+    "@welshman/signer": "^0.6.3",
+    "@welshman/store": "^0.6.3",
+    "@welshman/util": "^0.6.3",
     "events": "^3.3.0",
     "mithril": "^2.2.15",
     "svelte": "^5.27.2",
     "tailwindcss": "^4.1.4"
-  },
-  "pnpm": {
-    "overrides": {
-      "@welshman/feeds": "link:../../welshman/packages/feeds",
-      "@welshman/lib": "link:../../welshman/packages/lib",
-      "@welshman/util": "link:../../welshman/packages/util",
-      "@welshman/net": "link:../../welshman/packages/net",
-      "@welshman/signer": "link:../../welshman/packages/signer",
-      "@welshman/store": "link:../../welshman/packages/store"
-    }
   }
 }

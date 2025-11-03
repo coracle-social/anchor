@@ -12,8 +12,7 @@ import {
   getPubkeyTagValues,
   getListTags,
 } from '@welshman/util'
-import { makeLoader, LoadOptions, Pool, SocketAdapter } from '@welshman/net'
-import { Repository } from '@welshman/relay'
+import { makeLoader, LoadOptions, Repository, Pool, SocketAdapter } from '@welshman/net'
 import { Router, getFilterSelections } from '@welshman/router'
 import { deriveEventsMapped, collection } from '@welshman/store'
 import { getFeedArgs, isScopeFeed, walkFeed, isWOTFeed, Scope, Feed } from '@welshman/feeds'

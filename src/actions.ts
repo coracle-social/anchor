@@ -1,5 +1,5 @@
 import { instrument } from 'succinct-async'
-import { getTags, getTagValues, makeEvent, AUTH_JOIN } from '@welshman/util'
+import { getTags, getTagValues, makeEvent, RELAY_JOIN } from '@welshman/util'
 import { publish, SocketAdapter } from '@welshman/net'
 import { Alert, alertKinds, isEmailAlert, isPushAlert, getAlertSigner, getAlertSocket } from './alert.js'
 import * as mailer from './mailer.js'
@@ -26,7 +26,7 @@ export const addAlert = instrument('actions.addAlert', async ({ event, tags }: A
 
     await publish({
       relays: [url],
-      event: await signer.sign(makeEvent(AUTH_JOIN, { tags: [['claim', claim]] })),
+      event: await signer.sign(makeEvent(RELAY_JOIN, { tags: [['claim', claim]] })),
       context: {
         getAdapter: (url: string) => new SocketAdapter(socket),
       },
