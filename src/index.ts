@@ -7,11 +7,13 @@ import { migrate, getActiveAlerts } from './database.js'
 import { registerAlert } from './worker/index.js'
 
 process.on('unhandledRejection', (error: Error) => {
-  console.log(error.stack)
+  console.error('Unhandled rejection:', error.stack)
+  process.exit(1)
 })
 
 process.on('uncaughtException', (error: Error) => {
-  console.log(error.stack)
+  console.error('Uncaught exception:', error.stack)
+  process.exit(1)
 })
 
 migrate().then(async () => {

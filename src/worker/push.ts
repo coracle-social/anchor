@@ -263,6 +263,10 @@ const createListener = (alert: PushAlert) => {
     })
 
     return controller.listen()
+  }).catch((error: any) => {
+    console.error(`Listener error for ${alert.address}:`, error)
+    failAlert(alert.address, error.message || String(error))
+    removeListener(alert)
   })
 
   return { stop: () => promise.then(call) }
