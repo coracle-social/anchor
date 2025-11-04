@@ -1,7 +1,7 @@
 import apn from 'apn'
 import webpush from 'web-push'
 import fcm from 'firebase-admin'
-import { call, on } from '@welshman/lib'
+import { call, noop, on } from '@welshman/lib'
 import { Tracker } from '@welshman/net'
 import { parse, truncate, renderAsText } from '@welshman/content'
 import { WRAP, getFilterId, TrustedEvent } from '@welshman/util'
@@ -267,6 +267,8 @@ const createListener = (alert: PushAlert) => {
     console.error(`Listener error for ${alert.address}:`, error)
     failAlert(alert.address, error.message || String(error))
     removeListener(alert)
+
+    return noop
   })
 
   return { stop: () => promise.then(call) }
