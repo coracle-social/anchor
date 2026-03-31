@@ -1,5 +1,7 @@
 A nostr notifier service.
 
+**Note**: The [spec](https://github.com/nostr-protocol/nips/pull/1796) this project uses is deprecated in favor of [relay push](https://github.com/nostr-protocol/nips/pull/2194).
+
 # Deploying Anchor
 
 ## Configuration
